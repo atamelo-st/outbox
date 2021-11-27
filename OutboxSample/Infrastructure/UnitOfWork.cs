@@ -3,30 +3,34 @@ using OutboxSample.Application;
 
 namespace OutboxSample.Infrastructure;
 
-public record AutofacBackedUnitOfWork : IUnitOfWork
+public record UnitOfWork : IUnitOfWork
 {
-    private readonly ILifetimeScope scope;
+    private readonly ILifetimeScope _scope;
 
     private State _state;
 
 
-    public AutofacBackedUnitOfWork(ILifetimeScope scope)
+    public UnitOfWork(ILifetimeScope scope)
     {
         ArgumentNullException.ThrowIfNull(scope, nameof(scope));
 
-        this.scope = scope;
+        this._scope = scope;
 
         this._state = State.InProgress;
     }
 
     public TRepository GetRepository<TRepository>() where TRepository : IRepository, ISupportUnitOfWork
     {
-        throw new NotImplementedException();
+        var repo = this._scope.Resolve<TRepository>();
+
+        return repo;
     }
 
     public IOutbox GetOutbox()
     {
-        throw new NotImplementedException();
+        var outbox = this._scope.Resolve<IOutbox>();
+
+        return outbox;
     }
 
     public void Commit()
@@ -41,7 +45,7 @@ public record AutofacBackedUnitOfWork : IUnitOfWork
 
     public void Dispose()
     {
-
+        this._scope.Dispose();
     }
 
     private enum State
