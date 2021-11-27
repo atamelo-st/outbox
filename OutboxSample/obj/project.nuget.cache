@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "PJWergC8dmI6YvIykcsDLwh+9o7qUdLspV+7ylfnOVqs0P3E9pCiMedqvhr4LsXaL2LRWGglDUoBHOqoTbx5aA==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\ATamelo\\source\\repos\\OutboxSample\\OutboxSample\\OutboxSample.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ATamelo\\.nuget\\packages\\autofac\\6.3.0\\autofac.6.3.0.nupkg.sha512",
+    "C:\\Users\\ATamelo\\.nuget\\packages\\autofac.extensions.dependencyinjection\\7.2.0\\autofac.extensions.dependencyinjection.7.2.0.nupkg.sha512",
+    "C:\\Users\\ATamelo\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\6.0.0\\microsoft.extensions.dependencyinjection.abstractions.6.0.0.nupkg.sha512",
+    "C:\\Users\\ATamelo\\.nuget\\packages\\microsoft.visualstudio.azure.containers.tools.targets\\1.14.0\\microsoft.visualstudio.azure.containers.tools.targets.1.14.0.nupkg.sha512",
+    "C:\\Users\\ATamelo\\.nuget\\packages\\system.diagnostics.diagnosticsource\\4.7.1\\system.diagnostics.diagnosticsource.4.7.1.nupkg.sha512"
+  ],
+  "logs": []
+}
