@@ -1,6 +1,7 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using OutboxSample.Application;
+using OutboxSample.Infrastructure;
 using OutboxSample.Model;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,6 @@ app.Run();
 
 static void RegisterDependencies(ContainerBuilder containerBuilder)
 {
-
+    containerBuilder.RegisterType<UnitOfWorkFactory>().As<IUnitOfWorkFactory>().SingleInstance();
 }
 
