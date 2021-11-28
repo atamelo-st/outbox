@@ -1,6 +1,7 @@
 ﻿using OutboxSample.Application;
 using OutboxSample.Model;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace OutboxSample.Infrastructure
 {
@@ -16,18 +17,16 @@ namespace OutboxSample.Infrastructure
         public bool Add(User user)
         {
             using (IDbConnection connection = this._connectionFactory.GetConnection())
-            using (IDbCommand command = connection.CreateCommand())
+            using (var command = (SqlCommand)connection.CreateCommand())
             {
-                // open connection
-                // execute comand
-                // close connection
-
                 command.CommandText = "SQL goes here";
                 command.CommandType = CommandType.Text;
-                // command.Parameters = ...
-            }
+                command.Parameters.AddRange(new SqlParameter[0]);
 
-            throw new NotImplementedException();
+                int count = command.ExecuteNonQuery();
+
+                return count > 0;
+            }
         }
 
         public bool Delete(Guid id)

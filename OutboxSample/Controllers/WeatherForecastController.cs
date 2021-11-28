@@ -50,6 +50,8 @@ public class WeatherForecastController : ControllerBase
             IOutbox outbox = work.GetOutbox();
 
             outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
+
+            work.Commit();
         }
 
         return Ok();
