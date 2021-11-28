@@ -9,24 +9,24 @@ namespace OutboxSample.Infrastructure;
 
 public class UnitOfWorkFactory : IUnitOfWorkFactory
 {
-    private readonly ILifetimeScope _container;
+    private readonly ILifetimeScope container;
 
     public UnitOfWorkFactory(ILifetimeScope container)
     {
-        this._container = container;
+        this.container = container;
     }
 
     public IUnitOfWork Begin()
     {
         // TODO: move this all to scopeBuilder.Register?
-        var globalConnectionFactory = this._container.Resolve<IConnectionFactory>();
+        var globalConnectionFactory = this.container.Resolve<IConnectionFactory>();
         IDbConnection liveConnection = globalConnectionFactory.GetConnection();
         liveConnection.Open();
         IDbTransaction transaction = liveConnection.BeginTransaction();
         var sharedConnection = new SharedConnectionProxy(liveConnection, transaction);
         var sharedConnectionFactory = new SharedConnectionFactory(sharedConnection);
 
-        ILifetimeScope scopeContainer = this._container.BeginLifetimeScope(
+        ILifetimeScope scopeContainer = this.container.BeginLifetimeScope(
         // overriding default connection factory with transactional one
           scopeBuilder => scopeBuilder.Register(_ => sharedConnectionFactory).As<IConnectionFactory>().InstancePerLifetimeScope()
         );
@@ -40,50 +40,50 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     private class SharedConnectionFactory : IConnectionFactory
     {
-        private readonly SharedConnectionProxy _sharedConnection;
+        private readonly SharedConnectionProxy sharedConnection;
 
         public SharedConnectionFactory(SharedConnectionProxy sharedConnection)
         {
             ArgumentNullException.ThrowIfNull(sharedConnection, nameof(sharedConnection));
 
-            this._sharedConnection = sharedConnection;
+            this.sharedConnection = sharedConnection;
         }
 
-        public IDbConnection GetConnection() => this._sharedConnection;
+        public IDbConnection GetConnection() => this.sharedConnection;
     }
 
     private class SharedConnectionProxy : IDbConnection
     {
-        private readonly IDbConnection _liveConnection;
-        private readonly IDbTransaction _ambientTransaction;
+        private readonly IDbConnection liveConnection;
+        private readonly IDbTransaction ongoingTransaction;
 
         public string ConnectionString
         {
-            get => this._liveConnection.ConnectionString;
+            get => this.liveConnection.ConnectionString;
             [param: NotNull]
-            set => this._liveConnection.ConnectionString = value;
+            set => this.liveConnection.ConnectionString = value;
         }
 
-        public int ConnectionTimeout => this._liveConnection.ConnectionTimeout;
+        public int ConnectionTimeout => this.liveConnection.ConnectionTimeout;
 
-        public string Database => this._liveConnection.Database;
+        public string Database => this.liveConnection.Database;
 
-        public ConnectionState State => this._liveConnection.State;
+        public ConnectionState State => this.liveConnection.State;
 
-        public SharedConnectionProxy(IDbConnection innerConnection, IDbTransaction ambientTransaction)
+        public SharedConnectionProxy(IDbConnection liveConnection, IDbTransaction ongoingTransaction)
         {
-            ArgumentNullException.ThrowIfNull(innerConnection, nameof(innerConnection));
-            ArgumentNullException.ThrowIfNull(ambientTransaction, nameof(ambientTransaction));
+            ArgumentNullException.ThrowIfNull(liveConnection, nameof(liveConnection));
+            ArgumentNullException.ThrowIfNull(ongoingTransaction, nameof(ongoingTransaction));
 
-            this._liveConnection = innerConnection;
-            this._ambientTransaction = ambientTransaction;
+            this.liveConnection = liveConnection;
+            this.ongoingTransaction = ongoingTransaction;
         }
 
-        public IDbTransaction BeginTransaction() => this._ambientTransaction;
+        public IDbTransaction BeginTransaction() => this.ongoingTransaction;
 
         public IDbTransaction BeginTransaction(IsolationLevel il) => throw new InvalidOperationException("Not supposed to call this.");
 
-        public void ChangeDatabase(string databaseName) => this._liveConnection.ChangeDatabase(databaseName);
+        public void ChangeDatabase(string databaseName) => this.liveConnection.ChangeDatabase(databaseName);
 
         public void Close()
         {
@@ -93,8 +93,8 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
         public IDbCommand CreateCommand()
         {
-            IDbCommand command = this._liveConnection.CreateCommand();
-            command.Transaction = this._ambientTransaction;
+            IDbCommand command = this.liveConnection.CreateCommand();
+            command.Transaction = this.ongoingTransaction;
 
             return command;
         }
