@@ -40,7 +40,8 @@ internal record UnitOfWork : IUnitOfWork
     public bool Commit()
     {
         // in order to commit the _live_ transaction, the following prerequisite should hold:
-        // a transaction proxy from ConnectionProxy.BeginTransaction either hasn't been requested or has been requested AND has been committed
+        // the transaction proxy from ConnectionProxy.BeginTransaction either hasn't been requested
+        // or has been requested AND has been committed
         bool shouldCommit =
             !this.connectionProxy.HasTransactionBeenExplicitlyRequested ||
             this.connectionProxy.TransactionProxy.HasBeenCommitted;

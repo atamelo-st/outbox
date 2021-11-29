@@ -65,7 +65,7 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
 internal class DbConnectionProxy : IDbConnection
 {
-    private bool connectionHasBeenRequestedToOpen;
+    private bool hasConnectionHasBeenRequestedToOpen;
 
     public IDbConnection LiveConnection { get; }
 
@@ -83,7 +83,7 @@ internal class DbConnectionProxy : IDbConnection
 
         this.HasTransactionBeenExplicitlyRequested = false;
 
-        this.connectionHasBeenRequestedToOpen = false;
+        this.hasConnectionHasBeenRequestedToOpen = false;
     }
 
     [NotNull]
@@ -96,7 +96,7 @@ internal class DbConnectionProxy : IDbConnection
     public ConnectionState State => this.LiveConnection.State;
 
     // returning a _proxy_ for the ongoing transaction - 
-    // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a live transaction
+    // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a _live_ transaction
     public IDbTransaction BeginTransaction()
     {
         this.EnsureHasBeenRequestedToOpen();
@@ -126,7 +126,7 @@ internal class DbConnectionProxy : IDbConnection
 
     public void Close()
     {
-        this.connectionHasBeenRequestedToOpen = false;
+        this.hasConnectionHasBeenRequestedToOpen = false;
 
         // do nothing here - we close the live connection connection only when
         // encompassing scope/unit of work closes
@@ -153,14 +153,14 @@ internal class DbConnectionProxy : IDbConnection
     public void Open()
     {
         // just recording the fact that user 'opened' the connection - for consistency of the API behavior
-        this.connectionHasBeenRequestedToOpen = true;
+        this.hasConnectionHasBeenRequestedToOpen = true;
 
         // do nothing here - live connection opening is mananged outside
     }
 
     private void EnsureHasBeenRequestedToOpen()
     {
-        if (this.connectionHasBeenRequestedToOpen is not true)
+        if (this.hasConnectionHasBeenRequestedToOpen is not true)
         {
             // TODO: check exception type and messaging
             throw new InvalidOperationException("Can't start a transaction on a closed connection.");
