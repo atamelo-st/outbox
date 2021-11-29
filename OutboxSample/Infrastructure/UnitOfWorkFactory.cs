@@ -18,17 +18,21 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     public IUnitOfWork Begin()
     {
-        // TODO: move this all to scopeBuilder.Register?
-        var globalConnectionFactory = this.container.Resolve<IConnectionFactory>();
-        IDbConnection liveConnection = globalConnectionFactory.GetConnection();
+        var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
+        IDbConnection liveConnection = liveConnectionFactory.GetConnection();
+
         liveConnection.Open();
         IDbTransaction transaction = liveConnection.BeginTransaction();
+
         var sharedConnection = new SharedConnectionProxy(liveConnection, transaction);
         var sharedConnectionFactory = new SharedConnectionFactory(sharedConnection);
 
         ILifetimeScope scopeContainer = this.container.BeginLifetimeScope(
-        // overriding default connection factory with transactional one
-          scopeBuilder => scopeBuilder.Register(_ => sharedConnectionFactory).As<IConnectionFactory>().InstancePerLifetimeScope()
+          scopeBuilder =>
+          {
+              // overriding default connection factory with transactional one
+              scopeBuilder.Register(_ => sharedConnectionFactory).As<IConnectionFactory>().InstancePerLifetimeScope();
+          }
         );
 
         Debug.Assert(scopeContainer.Resolve<IConnectionFactory>().GetType() == typeof(SharedConnectionFactory));

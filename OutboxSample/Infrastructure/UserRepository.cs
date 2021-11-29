@@ -49,7 +49,6 @@ public class UserRepository : IUserRepository
         {
             command.CommandText = "SELECT * FROM users";
             command.CommandType = CommandType.Text;
-            // command.Parameters.AddRange(new SqlParameter[0]);
 
             connection.Open();
 
