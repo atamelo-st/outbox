@@ -33,6 +33,31 @@ public class UserRepository : IUserRepository
         }
     }
 
+    public bool AddMany(IEnumerable<User> users)
+    {
+        int count = 0;
+
+        using IDbConnection connection = this.connectionFactory.GetConnection();
+        connection.Open();
+        using IDbTransaction transaction = connection.BeginTransaction();
+
+        foreach (User user in users)
+            using (IDbCommand command = connection.CreateCommand())
+            {
+                command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
+                command.CommandType = CommandType.Text;
+                command.Parameters.Add(new SqlParameter("@pID", user.Id));
+                command.Parameters.Add(new SqlParameter("@pName", user.Name));
+                command.Transaction = transaction;
+
+                count += command.ExecuteNonQuery();
+            }
+
+        transaction.Commit();
+
+        return count > 0;
+    }
+
     public bool Delete(Guid id)
     {
         throw new NotImplementedException();

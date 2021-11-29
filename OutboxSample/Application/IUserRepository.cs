@@ -10,5 +10,7 @@ public interface IUserRepository : IRepository, ISupportUnitOfWork
 
     bool Add(User user);
 
+    bool AddMany(IEnumerable<User> users);
+
     bool Delete(Guid id);
 }

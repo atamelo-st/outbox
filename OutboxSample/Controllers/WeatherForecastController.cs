@@ -8,10 +8,6 @@ namespace OutboxSample.Controllers;
 [Route("[controller]")]
 public class WeatherForecastController : ControllerBase
 {
-    private static readonly string[] Summaries = new[]
-    {
-             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
     private readonly IUserRepository userRepository;
     private readonly IUnitOfWorkFactory unitOfWorkFactory;
     private readonly ILogger<WeatherForecastController> logger;
@@ -58,6 +54,31 @@ public class WeatherForecastController : ControllerBase
             var repo = work.GetRepository<IUserRepository>();
 
             repo.Add(new(Guid.NewGuid(), DateTime.Now.ToString()));
+
+            //IOutbox outbox = work.GetOutbox();
+
+            //outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
+
+            saved = work.Commit();
+        }
+
+        return Ok(saved ? "Saved" : "Not saved");
+    }
+
+    [HttpPost("v2")]
+    public IActionResult PostV2()
+    {
+        bool saved;
+
+        using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
+        {
+            var repo = work.GetRepository<IUserRepository>();
+
+            repo.AddMany(new User[]
+            {
+                new(Guid.NewGuid(), DateTime.Now.ToString()),
+                new(Guid.NewGuid(), DateTime.Now.ToString())
+            });
 
             //IOutbox outbox = work.GetOutbox();
 

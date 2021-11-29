@@ -27,10 +27,10 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
         IDbTransaction liveTransaction = liveConnection.BeginTransaction();
 
         // 3. Wire up the connection/transaction sharing logic
-        var transactionProxy = new DbTransactionProxy(liveTransaction);
-        var connectionProxy = new DbConnectionProxy(liveConnection, transactionProxy);
+        DbTransactionProxy transactionProxy = new (liveTransaction);
+        DbConnectionProxy connectionProxy = new (liveConnection, transactionProxy);
         transactionProxy.ConnectionProxy = connectionProxy;
-        var sharedConnectionFactory = new SharedConnectionFactory(connectionProxy);
+        SharedConnectionFactory sharedConnectionFactory = new (connectionProxy);
 
         // 4. Create isolated dependency scope to manage UoW's dependencies
         ILifetimeScope scopeContainer = this.container.BeginLifetimeScope(
@@ -42,8 +42,8 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
         );
 
         Debug.Assert(scopeContainer.Resolve<IConnectionFactory>().GetType() == typeof(SharedConnectionFactory));
- 
-        var unitOfWork = new UnitOfWork(scopeContainer, connectionProxy);
+
+        UnitOfWork? unitOfWork = new (scopeContainer, connectionProxy);
 
         return unitOfWork;
     }
@@ -65,6 +65,8 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
 internal class DbConnectionProxy : IDbConnection
 {
+    private bool connectionHasBeenRequestedToOpen;
+
     public IDbConnection LiveConnection { get; }
 
     public DbTransactionProxy TransactionProxy { get; }
@@ -80,6 +82,8 @@ internal class DbConnectionProxy : IDbConnection
         this.TransactionProxy = transactionProxy;
 
         this.HasTransactionBeenExplicitlyRequested = false;
+
+        this.connectionHasBeenRequestedToOpen = false;
     }
 
     [NotNull]
@@ -95,6 +99,8 @@ internal class DbConnectionProxy : IDbConnection
     // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a live transaction
     public IDbTransaction BeginTransaction()
     {
+        this.EnsureHasBeenRequestedToOpen();
+
         // if a transaction has been explicitly requested by the user via .BeginTrnasaction
         // they are now supposed to commit/rollack it.
         // Otherwise, the UoW will rollback the 'enclosing' live transaction in UnitOfWork.Commit()/Dispose().
@@ -105,6 +111,8 @@ internal class DbConnectionProxy : IDbConnection
 
     public IDbTransaction BeginTransaction(IsolationLevel il)
     {
+        this.EnsureHasBeenRequestedToOpen();
+
         if (this.TransactionProxy.IsolationLevel == il)
         {
             return this.TransactionProxy;
@@ -113,11 +121,13 @@ internal class DbConnectionProxy : IDbConnection
         throw new InvalidOperationException("Can't start a transaction - another transaction is in progress.");
     }
 
-    // throw on an attempt to change database?
+    // TODO: throw on an attempt to change database?
     public void ChangeDatabase(string databaseName) => this.LiveConnection.ChangeDatabase(databaseName);
 
     public void Close()
     {
+        this.connectionHasBeenRequestedToOpen = false;
+
         // do nothing here - we close the live connection connection only when
         // encompassing scope/unit of work closes
     }
@@ -127,20 +137,34 @@ internal class DbConnectionProxy : IDbConnection
         IDbCommand liveCommand = this.LiveConnection.CreateCommand();
         liveCommand.Transaction = this.TransactionProxy.LiveTransaction;
 
-        DbCommandProxy command = new DbCommandProxy(liveCommand, this, this.TransactionProxy);
+        DbCommandProxy command = new (liveCommand, this, this.TransactionProxy);
 
         return command;
     }
 
     public void Dispose()
     {
+        this.Close();
+
         // do nothing here - we close the live connection connection only when
         // encompassing scope/unit of work closes
     }
 
     public void Open()
     {
+        // just recording the fact that user 'opened' the connection - for consistency of the API behavior
+        this.connectionHasBeenRequestedToOpen = true;
+
         // do nothing here - live connection opening is mananged outside
+    }
+
+    private void EnsureHasBeenRequestedToOpen()
+    {
+        if (this.connectionHasBeenRequestedToOpen is not true)
+        {
+            // TODO: check exception type and messaging
+            throw new InvalidOperationException("Can't start a transaction on a closed connection.");
+        }
     }
 }
 
