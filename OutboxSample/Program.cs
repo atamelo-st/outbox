@@ -23,6 +23,11 @@ app.Run();
 
 static void RegisterDependencies(ContainerBuilder containerBuilder)
 {
+    containerBuilder.RegisterType<ConnectionStringProvider>().As<IConnectionStringProvider>().SingleInstance();
+    containerBuilder.RegisterType<DefaultConnectionFactory>().As<IConnectionFactory>().SingleInstance();
+    // TODO: per-scope?
     containerBuilder.RegisterType<UnitOfWorkFactory>().As<IUnitOfWorkFactory>().SingleInstance();
+
+    containerBuilder.RegisterType<UserRepository>().As<IUserRepository>().InstancePerLifetimeScope();
 }
 

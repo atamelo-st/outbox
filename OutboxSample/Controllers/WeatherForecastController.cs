@@ -12,36 +12,36 @@ public class WeatherForecastController : ControllerBase
     {
              "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
-
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<WeatherForecastController> _logger;
+    private readonly IUserRepository userRepository;
+    private readonly IUnitOfWorkFactory unitOfWorkFactory;
+    private readonly ILogger<WeatherForecastController> logger;
 
 
     public WeatherForecastController(
+        IUserRepository userRepository,
         IUnitOfWorkFactory unitOfWorkFactory,
         ILogger<WeatherForecastController> logger)
     {
-        this._unitOfWorkFactory = unitOfWorkFactory;
-        this._logger = logger;
+        this.userRepository = userRepository;
+        this.unitOfWorkFactory = unitOfWorkFactory;
+        this.logger = logger;
     }
 
     [HttpGet]
-    public IEnumerable<WeatherForecast> Get()
+    public IEnumerable<User> Get()
     {
-        return Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = DateTime.Now.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-        })
-        .ToArray();
+        IEnumerable<User> users = this.userRepository.GetAll();
+
+        return users;
+
+        // TODO: test IUserRepository.GetAll() from a UnitOfWork
     }
 
 
     [HttpPost]
     public IActionResult Post()
     {
-        using (IUnitOfWork work = this._unitOfWorkFactory.Begin())
+        using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 

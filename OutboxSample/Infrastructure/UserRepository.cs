@@ -38,4 +38,32 @@ public class UserRepository : IUserRepository
     {
         throw new NotImplementedException();
     }
+
+    public IEnumerable<User> GetAll()
+    {
+        using (IDbConnection connection = this.connectionFactory.GetConnection())
+        using (var command = connection.CreateCommand<SqlCommand>())
+        {
+            command.CommandText = "SELECT * FROM users";
+            command.CommandType = CommandType.Text;
+            // command.Parameters.AddRange(new SqlParameter[0]);
+
+            connection.Open();
+
+            using (SqlDataReader dataReader = command.ExecuteReader())
+            {
+                List<User> users = new();
+
+                while (dataReader.Read())
+                {
+                    Guid id = dataReader.GetGuid("id");
+                    string name = dataReader.GetString("name");
+
+                    users.Add(new User(id, name));
+                }
+
+                return users;
+            }
+        }
+    }
 }
