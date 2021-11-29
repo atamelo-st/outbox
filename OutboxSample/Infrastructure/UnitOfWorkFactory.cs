@@ -18,11 +18,11 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     public IUnitOfWork Begin()
     {
-        // 1. Get live connection to share
+        // 1. Get a live connection to share
         var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
         IDbConnection liveConnection = liveConnectionFactory.GetConnection();
 
-        // 2. Start a transaction to share - wrap the unit of work
+        // 2. Start a transaction to share - i.e. to 'wrap' the unit of work
         liveConnection.Open();
         IDbTransaction liveTransaction = liveConnection.BeginTransaction();
 
