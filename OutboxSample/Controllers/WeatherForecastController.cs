@@ -34,7 +34,7 @@ public class WeatherForecastController : ControllerBase
 
         return users;
 
-        // TODO: test IUserRepository.GetAll() from a UnitOfWork
+        // NOTE: this is just to test IUserRepository.GetAll() from a UnitOfWork
         // a stupid use-case, but it should work!
 
         //using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
@@ -51,6 +51,8 @@ public class WeatherForecastController : ControllerBase
     [HttpPost]
     public IActionResult Post()
     {
+        bool saved;
+
         using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
@@ -61,9 +63,9 @@ public class WeatherForecastController : ControllerBase
 
             //outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
 
-            work.Commit();
+            saved = work.Commit();
         }
 
-        return Ok();
+        return Ok(saved ? "Saved" : "Not saved");
     }
 }

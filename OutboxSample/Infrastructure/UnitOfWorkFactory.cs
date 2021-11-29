@@ -18,35 +18,41 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     public IUnitOfWork Begin()
     {
+        // 1. Get live connection to share
         var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
         IDbConnection liveConnection = liveConnectionFactory.GetConnection();
 
+        // 2. Start a transaction to share - wrap the unit of work
         liveConnection.Open();
-        IDbTransaction transaction = liveConnection.BeginTransaction();
+        IDbTransaction liveTransaction = liveConnection.BeginTransaction();
 
-        var sharedConnection = new SharedConnectionProxy(liveConnection, transaction);
-        var sharedConnectionFactory = new SharedConnectionFactory(sharedConnection);
+        // 3. Wire up the connection/transaction sharing logic
+        var transactionProxy = new DbTransactionProxy(liveTransaction);
+        var connectionProxy = new DbConnectionProxy(liveConnection, transactionProxy);
+        transactionProxy.ConnectionProxy = connectionProxy;
+        var sharedConnectionFactory = new SharedConnectionFactory(connectionProxy);
 
+        // 4. Create isolated dependency scope to manage UoW's dependencies
         ILifetimeScope scopeContainer = this.container.BeginLifetimeScope(
           scopeBuilder =>
           {
-              // overriding default connection factory with transactional one
+              // 5. Override default connection factory with newly created transactional one
               scopeBuilder.Register(_ => sharedConnectionFactory).As<IConnectionFactory>().InstancePerLifetimeScope();
           }
         );
 
         Debug.Assert(scopeContainer.Resolve<IConnectionFactory>().GetType() == typeof(SharedConnectionFactory));
  
-        var unitOfWork = new UnitOfWork(scopeContainer, liveConnection, transaction);
+        var unitOfWork = new UnitOfWork(scopeContainer, connectionProxy);
 
         return unitOfWork;
     }
 
     private class SharedConnectionFactory : IConnectionFactory
     {
-        private readonly SharedConnectionProxy sharedConnection;
+        private readonly DbConnectionProxy sharedConnection;
 
-        public SharedConnectionFactory(SharedConnectionProxy sharedConnection)
+        public SharedConnectionFactory(DbConnectionProxy sharedConnection)
         {
             ArgumentNullException.ThrowIfNull(sharedConnection, nameof(sharedConnection));
 
@@ -55,63 +61,186 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
         public IDbConnection GetConnection() => this.sharedConnection;
     }
+}
 
-    private class SharedConnectionProxy : IDbConnection
+internal class DbConnectionProxy : IDbConnection
+{
+    public IDbConnection LiveConnection { get; }
+
+    public DbTransactionProxy TransactionProxy { get; }
+
+    public bool HasTransactionBeenExplicitlyRequested { get; private set; }
+
+    public DbConnectionProxy(IDbConnection liveConnection, DbTransactionProxy transactionProxy)
     {
-        private readonly IDbConnection liveConnection;
-        private readonly IDbTransaction ongoingTransaction;
+        ArgumentNullException.ThrowIfNull(liveConnection, nameof(liveConnection));
+        ArgumentNullException.ThrowIfNull(transactionProxy, nameof(transactionProxy));
 
-        public string ConnectionString
+        this.LiveConnection = liveConnection;
+        this.TransactionProxy = transactionProxy;
+
+        this.HasTransactionBeenExplicitlyRequested = false;
+    }
+
+    [NotNull]
+    public string? ConnectionString { get => this.LiveConnection.ConnectionString; set => this.LiveConnection.ConnectionString = value; }
+
+    public int ConnectionTimeout => this.LiveConnection.ConnectionTimeout;
+
+    public string Database => this.LiveConnection.Database;
+
+    public ConnectionState State => this.LiveConnection.State;
+
+    // returning a _proxy_ for the ongoing transaction - 
+    // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a live transaction
+    public IDbTransaction BeginTransaction()
+    {
+        // if a transaction has been explicitly requested by the user via .BeginTrnasaction
+        // they are now supposed to commit/rollack it.
+        // Otherwise, the UoW will rollback the 'enclosing' live transaction in UnitOfWork.Commit()/Dispose().
+        this.HasTransactionBeenExplicitlyRequested = true;
+
+        return this.TransactionProxy;
+    }
+
+    public IDbTransaction BeginTransaction(IsolationLevel il)
+    {
+        if (this.TransactionProxy.IsolationLevel == il)
         {
-            get => this.liveConnection.ConnectionString;
-            [param: NotNull]
-            set => this.liveConnection.ConnectionString = value;
+            return this.TransactionProxy;
         }
 
-        public int ConnectionTimeout => this.liveConnection.ConnectionTimeout;
+        throw new InvalidOperationException("Can't start a transaction - another transaction is in progress.");
+    }
 
-        public string Database => this.liveConnection.Database;
+    // throw on an attempt to change database?
+    public void ChangeDatabase(string databaseName) => this.LiveConnection.ChangeDatabase(databaseName);
 
-        public ConnectionState State => this.liveConnection.State;
+    public void Close()
+    {
+        // do nothing here - we close the live connection connection only when
+        // encompassing scope/unit of work closes
+    }
 
-        public SharedConnectionProxy(IDbConnection liveConnection, IDbTransaction ongoingTransaction)
+    public IDbCommand CreateCommand()
+    {
+        IDbCommand liveCommand = this.LiveConnection.CreateCommand();
+        liveCommand.Transaction = this.TransactionProxy.LiveTransaction;
+
+        DbCommandProxy command = new DbCommandProxy(liveCommand, this, this.TransactionProxy);
+
+        return command;
+    }
+
+    public void Dispose()
+    {
+        // do nothing here - we close the live connection connection only when
+        // encompassing scope/unit of work closes
+    }
+
+    public void Open()
+    {
+        // do nothing here - live connection opening is mananged outside
+    }
+}
+
+internal class DbCommandProxy : IDbCommand
+{
+    private readonly IDbCommand liveCommand;
+    private readonly DbConnectionProxy connectionProxy;
+
+    private DbTransactionProxy transactionProxy;
+
+
+    public DbCommandProxy(IDbCommand liveCommand, DbConnectionProxy connectionProxy, DbTransactionProxy transactionProxy)
+    {
+        ArgumentNullException.ThrowIfNull(liveCommand, nameof(liveCommand));
+        ArgumentNullException.ThrowIfNull(connectionProxy, nameof(connectionProxy));
+        ArgumentNullException.ThrowIfNull(transactionProxy, nameof(transactionProxy));
+
+        this.liveCommand = liveCommand;
+        this.connectionProxy = connectionProxy;
+        this.transactionProxy = transactionProxy;
+    }
+
+    [NotNull]
+    public string? CommandText { get => this.liveCommand.CommandText; set => this.liveCommand.CommandText = value; }
+
+    public int CommandTimeout { get => this.liveCommand.CommandTimeout; set => this.liveCommand.CommandTimeout = value; }
+
+    public CommandType CommandType { get => this.liveCommand.CommandType; set => this.liveCommand.CommandType = value; }
+
+    // TODO: make the setter a no-op?
+    public IDbConnection? Connection { get => this.connectionProxy; set => throw new NotSupportedException("Can't change connection."); }
+
+    public IDataParameterCollection Parameters => this.liveCommand.Parameters;
+
+    // 1. The transaction has already been set upon the command creation
+    // 2. The DbConnectionProxy.BeginTransaction is configured to always return the same transaction, which is the same as in #1
+    // So, at it's pointless to override the transaction with the same value, command's transaction setter is just a no-op
+    public IDbTransaction? Transaction { get => this.transactionProxy; set { } }
+
+    public UpdateRowSource UpdatedRowSource { get => this.liveCommand.UpdatedRowSource; set => this.liveCommand.UpdatedRowSource = value; }
+
+    public void Cancel() => this.liveCommand.Cancel();
+
+    public IDbDataParameter CreateParameter() => this.liveCommand.CreateParameter();
+
+    public void Dispose() => this.liveCommand.Dispose();
+
+    public int ExecuteNonQuery() => this.liveCommand.ExecuteNonQuery();
+
+    public IDataReader ExecuteReader() => this.liveCommand.ExecuteReader();
+
+    public IDataReader ExecuteReader(CommandBehavior behavior) => this.liveCommand.ExecuteReader(behavior);
+
+    public object? ExecuteScalar() => this.ExecuteScalar();
+
+    public void Prepare() => this.liveCommand.Prepare();
+}
+
+internal class DbTransactionProxy : IDbTransaction
+{
+    [NotNull]
+    public DbConnectionProxy? ConnectionProxy { get; internal set; }
+
+    public IDbTransaction LiveTransaction { get; }
+
+    public bool HasBeenCommitted { get; private set; }
+
+
+    public DbTransactionProxy(IDbTransaction liveTransaction)
+    {
+        ArgumentNullException.ThrowIfNull(liveTransaction, nameof(liveTransaction));
+
+        this.LiveTransaction = liveTransaction;
+
+        this.HasBeenCommitted = false;
+    }
+
+    public IDbConnection? Connection => this.ConnectionProxy;
+    public IsolationLevel IsolationLevel => this.LiveTransaction.IsolationLevel;
+
+    public void Commit()
+    {
+        this.HasBeenCommitted = true;
+
+        // do nothing - if there a transaction proxy, then there is a UoW transaction is in progress
+        // it'll be committed when the UoW commits
+    }
+
+    public void Dispose()
+    {
+        // do nothing - it's a proxy
+    }
+
+    public void Rollback()
+    {
+        if (this.HasBeenCommitted)
         {
-            ArgumentNullException.ThrowIfNull(liveConnection, nameof(liveConnection));
-            ArgumentNullException.ThrowIfNull(ongoingTransaction, nameof(ongoingTransaction));
-
-            this.liveConnection = liveConnection;
-            this.ongoingTransaction = ongoingTransaction;
+            throw new InvalidOperationException("Can't roll back - the transaction has already been committed.");
         }
 
-        public IDbTransaction BeginTransaction() => this.ongoingTransaction;
-
-        public IDbTransaction BeginTransaction(IsolationLevel il) => throw new InvalidOperationException("Not supposed to call this.");
-
-        public void ChangeDatabase(string databaseName) => this.liveConnection.ChangeDatabase(databaseName);
-
-        public void Close()
-        {
-            // do nothing here - we close the live connection connection only when
-            // encompassing scope/unit of work closes
-        }
-
-        public IDbCommand CreateCommand()
-        {
-            IDbCommand command = this.liveConnection.CreateCommand();
-            command.Transaction = this.ongoingTransaction;
-
-            return command;
-        }
-
-        public void Dispose()
-        {
-            // do nothing here - we close the live connection connection only when
-            // encompassing scope/unit of work closes
-        }
-
-        public void Open()
-        {
-            // do nothing here - live connection opening is mananged outside
-        }
+        // do nothing - it's a proxy
     }
 }

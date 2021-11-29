@@ -4,24 +4,22 @@ using System.Data;
 
 namespace OutboxSample.Infrastructure;
 
-public record UnitOfWork : IUnitOfWork
+internal record UnitOfWork : IUnitOfWork
 {
     private readonly ILifetimeScope dependencyResolver;
-    private readonly IDbConnection connection;
-    private readonly IDbTransaction transaction;
+    private readonly DbConnectionProxy connectionProxy;
 
     private State state;
 
 
-    public UnitOfWork(ILifetimeScope dependencyResolver, IDbConnection connection, IDbTransaction transaction)
+    public UnitOfWork(ILifetimeScope dependencyResolver, DbConnectionProxy connectionProxy)
     {
         ArgumentNullException.ThrowIfNull(dependencyResolver, nameof(dependencyResolver));
-        ArgumentNullException.ThrowIfNull(connection, nameof(connection));
-        ArgumentNullException.ThrowIfNull(transaction, nameof(transaction));
+        ArgumentNullException.ThrowIfNull(connectionProxy, nameof(connectionProxy));
 
         this.dependencyResolver = dependencyResolver;
-        this.connection = connection;
-        this.transaction = transaction;
+        this.connectionProxy = connectionProxy;
+
         this.state = State.InProgress;
     }
 
@@ -39,30 +37,52 @@ public record UnitOfWork : IUnitOfWork
         return outbox;
     }
 
-    public void Commit()
+    public bool Commit()
     {
-        this.transaction.Commit();
+        // in order to commit the _live_ transaction, the following prerequisite should hold:
+        // a transaction proxy from ConnectionProxy.BeginTransaction either hasn't been requested or has been requested AND has been committed
+        bool shouldCommit =
+            !this.connectionProxy.HasTransactionBeenExplicitlyRequested ||
+            this.connectionProxy.TransactionProxy.HasBeenCommitted;
 
-        this.state = State.Comitted;
+        if (shouldCommit)
+        {
+            this.connectionProxy.TransactionProxy.LiveTransaction.Commit();
+
+            this.state = State.Comitted;
+
+            return true;
+        }
+
+        this.Rollback();
+
+        return false;
     }
 
     public void Rollback()
     {
-        this.transaction.Rollback();
+        this.connectionProxy.TransactionProxy.LiveTransaction.Rollback();
 
         this.state = State.RolledBack;
     }
 
     public void Dispose()
     {
-        if (this.state == State.InProgress)
+        if (this.state == State.Disposed)
         {
-            this.transaction.Rollback();
+            return;
         }
 
-        this.transaction.Dispose();
-        this.connection.Dispose();
+        if (this.state == State.InProgress)
+        {
+            this.Rollback();
+        }
+
+        this.connectionProxy.TransactionProxy.LiveTransaction.Dispose();
+        this.connectionProxy.LiveConnection.Dispose();
         this.dependencyResolver.Dispose();
+
+        this.state = State.Disposed;
     }
 
     private enum State

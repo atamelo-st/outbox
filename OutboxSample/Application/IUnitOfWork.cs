@@ -2,7 +2,7 @@
 
 public interface IUnitOfWork : IDisposable
 {
-    void Commit();
+    bool Commit();
     void Rollback();
 
     TRepository GetRepository<TRepository>() where TRepository : IRepository, ISupportUnitOfWork;
