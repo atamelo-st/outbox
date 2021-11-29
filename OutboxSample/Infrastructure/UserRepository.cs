@@ -19,9 +19,12 @@ public class UserRepository : IUserRepository
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (var command = connection.CreateCommand<SqlCommand>())
         {
-            command.CommandText = "SQL goes here";
+            command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
             command.CommandType = CommandType.Text;
-            command.Parameters.AddRange(new SqlParameter[0]);
+            command.Parameters.AddWithValue("@pID", user.Id);
+            command.Parameters.AddWithValue("@pName", user.Name);
+
+            connection.Open();
 
             int count = command.ExecuteNonQuery();
 

@@ -35,6 +35,16 @@ public class WeatherForecastController : ControllerBase
         return users;
 
         // TODO: test IUserRepository.GetAll() from a UnitOfWork
+        // a stupid use-case, but it should work!
+
+        //using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
+        //{
+        //    var repo = work.GetRepository<IUserRepository>();
+
+        //    IEnumerable<User> users = repo.GetAll();
+
+        //    return users;
+        //}
     }
 
 
@@ -45,11 +55,11 @@ public class WeatherForecastController : ControllerBase
         {
             var repo = work.GetRepository<IUserRepository>();
 
-            repo.Add(null!);
+            repo.Add(new(Guid.NewGuid(), DateTime.Now.ToString()));
 
-            IOutbox outbox = work.GetOutbox();
+            //IOutbox outbox = work.GetOutbox();
 
-            outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
+            //outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
 
             work.Commit();
         }
