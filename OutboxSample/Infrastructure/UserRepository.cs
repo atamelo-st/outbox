@@ -1,6 +1,7 @@
 ﻿using OutboxSample.Application;
 using OutboxSample.Model;
 using System.Data;
+using System.Data.Common;
 
 namespace OutboxSample.Infrastructure;
 
@@ -39,17 +40,26 @@ public class UserRepository : IUserRepository
         connection.Open();
         using IDbTransaction transaction = connection.BeginTransaction();
 
-        foreach (User user in users)
-            using (IDbCommand command = connection.CreateCommand())
-            {
-                command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
-                command.CommandType = CommandType.Text;
-                command.Parameters.Add(command.CreateParameter("@pID", user.Id));
-                command.Parameters.Add(command.CreateParameter("@pName", user.Name));
-                command.Transaction = transaction;
+        using IDbCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
+        command.CommandType = CommandType.Text;
 
-                count += command.ExecuteNonQuery();
-            }
+        DbParameter idParameter = command.CreateParameter("@pID", DbType.Guid);
+        DbParameter nameParamenter = command.CreateParameter("@pName", DbType.String, 50);
+
+        command.Parameters.Add(idParameter);
+        command.Parameters.Add(nameParamenter);
+        // TODO: switch to the `unnest` function. Details: https://github.com/npgsql/npgsql/issues/2779#issuecomment-573439342
+        command.Prepare();
+
+        foreach (User user in users)
+        {
+            idParameter.Value = user.Id;
+            nameParamenter.Value = user.Name;
+
+            count += command.ExecuteNonQuery();
+        }
 
         transaction.Commit();
 

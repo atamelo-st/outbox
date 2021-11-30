@@ -5,6 +5,27 @@ namespace OutboxSample.Infrastructure;
 
 public static class IDbCommandExtensions
 {
+    public static DbParameter CreateParameter(this IDbCommand command, string parameterName, DbType dbType, int size)
+    {
+        DbParameter parameter = command.CreateParameter(parameterName, dbType);
+
+        parameter.Size = size;
+
+        return parameter;
+    }
+
+    public static DbParameter CreateParameter(this IDbCommand command, string parameterName, DbType dbType)
+        => command.CreateParameter(parameterName, null, dbType);
+
+    public static DbParameter CreateParameter(this IDbCommand command, string parameterName, object? parameterValue, DbType dbType)
+    {
+        DbParameter parameter = command.CreateParameter(parameterName, parameterValue);
+
+        parameter.DbType = dbType;
+
+        return parameter;
+    }
+
     public static DbParameter CreateParameter(this IDbCommand command, string parameterName, object? parameterValue)
     {
         var parameter =  (DbParameter)command.CreateParameter();
