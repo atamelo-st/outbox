@@ -6,20 +6,18 @@ namespace OutboxSample.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class WeatherForecastController : ControllerBase
+public class UserController : ApplicationControllerBase
 {
     private readonly IUserRepository userRepository;
-    private readonly IUnitOfWorkFactory unitOfWorkFactory;
-    private readonly ILogger<WeatherForecastController> logger;
+    private readonly ILogger<UserController> logger;
 
 
-    public WeatherForecastController(
+    public UserController(
         IUserRepository userRepository,
         IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<WeatherForecastController> logger)
+        ILogger<UserController> logger) : base(unitOfWorkFactory)
     {
         this.userRepository = userRepository;
-        this.unitOfWorkFactory = unitOfWorkFactory;
         this.logger = logger;
     }
 
@@ -33,7 +31,7 @@ public class WeatherForecastController : ControllerBase
         // NOTE: this is just to test IUserRepository.GetAll() from a UnitOfWork
         // a stupid use-case, but it should work!
 
-        //using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
+        //using (IUnitOfWork work = UnitOfWork.Begin())
         //{
         //    var repo = work.GetRepository<IUserRepository>();
 
@@ -49,7 +47,7 @@ public class WeatherForecastController : ControllerBase
     {
         bool saved;
 
-        using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
+        using (IUnitOfWork work = UnitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 
@@ -70,7 +68,7 @@ public class WeatherForecastController : ControllerBase
     {
         bool saved;
 
-        using (IUnitOfWork work = this.unitOfWorkFactory.Begin())
+        using (IUnitOfWork work = UnitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 
