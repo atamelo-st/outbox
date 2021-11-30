@@ -43,7 +43,7 @@ internal record UnitOfWork : IUnitOfWork
         // the transaction proxy from ConnectionProxy.BeginTransaction either hasn't been requested
         // or has been requested AND has been committed
         bool shouldCommit =
-            !this.connectionProxy.HasTransactionBeenExplicitlyRequested ||
+            this.connectionProxy.HasTransactionBeenExplicitlyRequested is not true ||
             this.connectionProxy.TransactionProxy.HasBeenCommitted;
 
         if (shouldCommit)

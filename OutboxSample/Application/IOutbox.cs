@@ -2,5 +2,7 @@
 
 public interface IOutbox : ISupportUnitOfWork
 {
-    void Send<TEvent>(TEvent @event);
+    bool Send<TEvent>(TEvent @event);
+
+    bool Send<TEvent>(IEnumerable<TEvent> events);
 }

@@ -30,6 +30,7 @@ public class Program
         // TODO: per-scope?
         containerBuilder.RegisterType<UnitOfWorkFactory>().As<IUnitOfWorkFactory>().SingleInstance();
 
+        containerBuilder.RegisterType<Outbox>().As<IOutbox>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserRepository>().As<IUserRepository>().InstancePerLifetimeScope();
     }
 }

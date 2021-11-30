@@ -12,4 +12,9 @@ public readonly record struct UserAddedEvent
         UserId = userId;
         UserName = userName;
     }
+
+    public UserAddedEvent()
+    {
+        throw new NotSupportedException("Must use constructor with parameters.");
+    }
 }

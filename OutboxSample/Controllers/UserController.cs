@@ -9,15 +9,18 @@ namespace OutboxSample.Controllers;
 public class UserController : ApplicationControllerBase
 {
     private readonly IUserRepository userRepository;
+    private readonly IOutbox outbox;
     private readonly ILogger<UserController> logger;
 
 
     public UserController(
         IUserRepository userRepository,
+        IOutbox outbox,
         IUnitOfWorkFactory unitOfWorkFactory,
         ILogger<UserController> logger) : base(unitOfWorkFactory)
     {
         this.userRepository = userRepository;
+        this.outbox = outbox;
         this.logger = logger;
     }
 
@@ -51,11 +54,13 @@ public class UserController : ApplicationControllerBase
         {
             var repo = work.GetRepository<IUserRepository>();
 
-            repo.Add(new(Guid.NewGuid(), DateTime.Now.ToString()));
+            User newUser = new(Guid.NewGuid(), DateTime.Now.ToString());
 
-            //IOutbox outbox = work.GetOutbox();
+            repo.Add(newUser);
 
-            //outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
+            IOutbox outbox = work.GetOutbox();
+
+            outbox.Send(new UserAddedEvent(newUser.Id, newUser.Name));
 
             saved = work.Commit();
         }
