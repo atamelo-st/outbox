@@ -4,5 +4,5 @@ public interface IOutbox : ISupportUnitOfWork
 {
     bool Send<TEvent>(TEvent @event);
 
-    bool Send<TEvent>(IEnumerable<TEvent> events);
+    bool SendMany<TEvent>(IReadOnlyList<TEvent> events);
 }

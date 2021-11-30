@@ -77,15 +77,22 @@ public class UserController : ApplicationControllerBase
         {
             var repo = work.GetRepository<IUserRepository>();
 
-            repo.AddMany(new User[]
+            var users = new User[]
             {
                 new(Guid.NewGuid(), DateTime.Now.ToString()),
                 new(Guid.NewGuid(), DateTime.Now.ToString())
-            });
+            };
 
-            //IOutbox outbox = work.GetOutbox();
+            bool added = repo.AddMany(users);
 
-            //outbox.Publish((EventEnvelope<UserAddedEvent>)null!);
+            if (added is not true)
+            {
+                return Ok("Nothing added");
+            }
+
+            IOutbox outbox = work.GetOutbox();
+
+            outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
             saved = work.Commit();
         }
