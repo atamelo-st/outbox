@@ -1,5 +1,6 @@
 ﻿using OutboxSample.Application;
 using System.Data;
+using System.Text.Json;
 
 namespace OutboxSample.Infrastructure;
 
@@ -16,8 +17,6 @@ public class Outbox : IOutbox
 
     public bool Send<TEvent>(TEvent @event)
     {
-        return true;
-
         string serialized = Serialize(@event);
         Guid eventId = Guid.NewGuid();
 
@@ -39,12 +38,14 @@ public class Outbox : IOutbox
 
     public bool Send<TEvent>(IEnumerable<TEvent> events)
     {
-        // TODO: try BatchCommand
+        // TODO: try BatchCommand/SQL `unnest` function
         throw new NotImplementedException();
     }
 
     private static string Serialize<TEvent>(TEvent @event)
     {
-        return "{serialized}";
+        string json = JsonSerializer.Serialize(@event);
+
+        return json;
     }
 }
