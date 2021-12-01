@@ -68,30 +68,3 @@ ALTER TABLE IF EXISTS public.users OWNER to postgres;
         }
     }
 }
-
-
-//CREATE TABLE IF NOT EXISTS public.outbox
-//(
-//    EventId uuid NOT NULL,
-//    Payload character varying COLLATE pg_catalog."default" NOT NULL,
-//    CONSTRAINT "Outbox_pkey" PRIMARY KEY("EventId")
-//)
-
-//TABLESPACE pg_default;
-
-//ALTER TABLE IF EXISTS public.outbox
-//    OWNER to postgres;
-
-
-//CREATE TABLE IF NOT EXISTS public.users
-//(
-//    Id uuid NOT NULL,
-//    Name character varying COLLATE pg_catalog."default" NOT NULL,
-//    CONSTRAINT "Users_pkey" PRIMARY KEY("Id")
-//)
-
-//TABLESPACE pg_default;
-
-//ALTER TABLE IF EXISTS public.users
-//    OWNER to postgres;
-
