@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using Npgsql;
+using System.Data;
 using System.Data.SqlClient;
 
 namespace OutboxSample.Infrastructure;
@@ -18,7 +19,8 @@ public class DefaultConnectionFactory : IConnectionFactory
     {
         string connectionString = this.connectionStringProvider.GetConnectionString();
 
-        var connection = new SqlConnection(connectionString);
+        // var connection = new SqlConnection(connectionString);
+        var connection = new NpgsqlConnection(connectionString);
 
         return connection;
     }
