@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutboxSample", "OutboxSample\OutboxSample.csproj", "{229AB41C-6576-456C-ACDF-8013F43DA58E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OutboxSample", "OutboxSample\OutboxSample.csproj", "{229AB41C-6576-456C-ACDF-8013F43DA58E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KafkaEventListener", "KafkaEventListener\KafkaEventListener.csproj", "{752905A6-D77F-415E-A02A-DAFB9565AE1A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{229AB41C-6576-456C-ACDF-8013F43DA58E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{229AB41C-6576-456C-ACDF-8013F43DA58E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{229AB41C-6576-456C-ACDF-8013F43DA58E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{752905A6-D77F-415E-A02A-DAFB9565AE1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{752905A6-D77F-415E-A02A-DAFB9565AE1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{752905A6-D77F-415E-A02A-DAFB9565AE1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{752905A6-D77F-415E-A02A-DAFB9565AE1A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
