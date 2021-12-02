@@ -1,7 +1,5 @@
 ﻿using OutboxSample.Application;
 using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
 using System.Text;
 using System.Text.Json;
 
@@ -23,9 +21,14 @@ public class Outbox : IOutbox
 
     public bool Send<TEvent>(TEvent @event)
     {
-        using (IDbConnection connection = this.connectionFactory.GetConnection())
+        using IDbConnection connection = this.connectionFactory.GetConnection();
+        connection.Open();
+
+        using (IDbTransaction transaction = connection.BeginTransaction())
         using (IDbCommand command = connection.CreateCommand())
         {
+            command.Transaction = transaction;
+
             command.CommandText = 
 @"INSERT INTO outbox_events(id, aggregate_type, aggregate_id, type, payload) VALUES(@EventId, @AggregateType, @AggregateId, @Type, @Payload)";
             command.CommandType = CommandType.Text;
@@ -43,9 +46,12 @@ public class Outbox : IOutbox
             string payload = Serialize(@event);
             command.Parameters.Add(command.CreateParameter("@Payload", payload));
 
-            connection.Open();
-
             int count = command.ExecuteNonQuery();
+
+            command.CommandText = "DELETE FROM outbox_events WHERE id=@EventId";
+            command.ExecuteNonQuery();
+
+            transaction.Commit();
 
             return count > 0;
         }
@@ -53,6 +59,8 @@ public class Outbox : IOutbox
 
     public bool SendMany<TEvent>(IReadOnlyList<TEvent> events)
     {
+        // TODO: create a transaction
+        // TODO: add event deletion after published
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (IDbCommand command = connection.CreateCommand())
         {
