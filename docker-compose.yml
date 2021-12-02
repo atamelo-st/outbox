@@ -1,40 +1,101 @@
-version: '3.5'
+version: '3.7'
 
 services:
+
   postgres:
-    container_name: postgres_container
-    image: postgres
+    image: debezium/postgres
+    container_name: postgres_outbox
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
       PGDATA: /data/postgres
     volumes:
-       - postgres:/data/postgres
+      - postgres:/data/postgres
     ports:
-      - "5432:5432"
-    networks:
-      - postgres
+      - 5499:5432
+    networks: 
+      - broker-kafka
     restart: unless-stopped
   
   pgadmin:
-    container_name: pgadmin_container
+    container_name: pgadmin_outbox
     image: dpage/pgadmin4
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     volumes:
-       - pgadmin:/var/lib/pgadmin
-
+      - pgadmin:/var/lib/pgadmin
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     networks:
-      - postgres
+      - broker-kafka
     restart: unless-stopped
 
-networks:
-  postgres:
-    driver: bridge
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper_outbox
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+    networks: 
+      - broker-kafka
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka_outbox
+    depends_on:
+      - zookeeper_outbox
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_CLEANER_DELETE_RETENTION_MS: 5000
+      KAFKA_BROKER_ID: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+    ports:
+      - 9092:9092
+    networks: 
+      - broker-kafka
+    restart: unless-stopped
+
+  connector:
+    image: debezium/connect:latest
+    container_name: kafka_connect_with_debezium_outbox
+    depends_on:
+      - zookeeper_outbox
+      - kafka_outbox
+    environment:
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: my_connect_configs
+      OFFSET_STORAGE_TOPIC: my_connect_offsets
+      BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "8083:8083"
+    networks: 
+      - broker-kafka
+    restart: unless-stopped
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop_outbox
+    depends_on:
+      - kafka_outbox
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+    ports:
+      - 9000:9000
+    networks: 
+      - broker-kafka
+    restart: unless-stopped
+
+networks: 
+  broker-kafka:
+    driver: bridge 
 
 volumes:
     postgres:
