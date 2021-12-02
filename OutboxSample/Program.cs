@@ -54,6 +54,7 @@ public class Program
 
                 if (dbExists is not true)
                 {
+                    reader.Close();
                     command.CommandText =
     @"
 CREATE DATABASE testdatabase
