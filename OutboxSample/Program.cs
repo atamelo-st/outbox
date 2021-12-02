@@ -43,27 +43,57 @@ public class Program
         using (IDbConnection connection = connectionFactory.GetConnection())
         using (IDbCommand command = connection.CreateCommand())
         {
+            connection.Open();
+
+            // TODO: move it all to a startup postgre script
+            command.CommandText = "SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower('testdatabase');";
+
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                bool dbExists = reader.Read();
+
+                if (dbExists is not true)
+                {
+                    command.CommandText =
+    @"
+CREATE DATABASE testdatabase
+    WITH
+    OWNER = admin
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1;
+";
+
+                    command.ExecuteNonQuery();
+                }
+            }
+
+            connection.ChangeDatabase("testdatabase");
+
             command.CommandText =
-@"
-CREATE TABLE IF NOT EXISTS public.outbox
+@"CREATE TABLE IF NOT EXISTS public.outbox_events
 (
-    EventId uuid NOT NULL,
-    Payload character varying COLLATE pg_catalog.""default"" NOT NULL,
-    CONSTRAINT ""Outbox_pkey"" PRIMARY KEY(EventId)
+    id uuid NOT NULL,
+    aggregate_type text COLLATE pg_catalog.""default"",
+    aggregate_id uuid NOT NULL,
+    type text COLLATE pg_catalog.""default"",
+    payload text COLLATE pg_catalog.""default"",
+    CONSTRAINT pk_outbox_events PRIMARY KEY(id)
 );
 
-ALTER TABLE IF EXISTS public.outbox OWNER to postgres;
+ALTER TABLE IF EXISTS public.outbox_events OWNER to admin;
 
 CREATE TABLE IF NOT EXISTS public.users
 (
-    Id uuid NOT NULL,
-    Name character varying COLLATE pg_catalog.""default"" NOT NULL,
-    CONSTRAINT ""Users_pkey"" PRIMARY KEY(Id)
+    id uuid NOT NULL,
+    name character varying COLLATE pg_catalog.""default"" NOT NULL,
+    CONSTRAINT pk_users PRIMARY KEY(id)
 );
 
-ALTER TABLE IF EXISTS public.users OWNER to postgres;
+ALTER TABLE IF EXISTS public.users OWNER to admin;
 ";
-            connection.Open();
             command.ExecuteNonQuery();
         }
     }

@@ -8,9 +8,9 @@ services:
     environment:
       POSTGRES_PASSWORD: admin
       POSTGRES_USER: admin
-      PGDATA: /data/postgres
+      PGDATA: /data/postgres_outbox
     volumes:
-      - postgres:/data/postgres
+      - postgres:/data/postgres_outbox
     ports:
       - 5499:5432
     networks: 
@@ -25,7 +25,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     volumes:
-      - pgadmin:/var/lib/pgadmin
+      - pgadmin:/var/lib/pgadmin_outbox
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     networks:

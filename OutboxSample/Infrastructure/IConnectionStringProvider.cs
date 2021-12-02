@@ -15,8 +15,8 @@ public class ConnectionStringProvider : IConnectionStringProvider
         //SqlConnectionStringBuilder sb = new("Server=localhost;User Id=st;Password=$5t-m$5q1$;")
         //{ InitialCatalog = "Test" };
 
-        NpgsqlConnectionStringBuilder sb = new("Host=localhost;Username=postgres;Password=changeme;Database=TestDatabase;");
-        sb.Port = 5432;
+        NpgsqlConnectionStringBuilder sb = new("Host=localhost;Username=admin;Password=admin;");
+        sb.Port = 5499;
         // sb.SearchPath = "public";
 
         string connectionString = sb.ToString();
