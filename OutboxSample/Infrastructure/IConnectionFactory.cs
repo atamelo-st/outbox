@@ -4,5 +4,5 @@ namespace OutboxSample.Infrastructure;
 
 public interface IConnectionFactory
 {
-    IDbConnection GetConnection();
+    IDbConnection GetConnection(string? databaseName = null);
 }

@@ -15,9 +15,9 @@ public class DefaultConnectionFactory : IConnectionFactory
         this.connectionStringProvider = connectionStringProvider;
     }
 
-    public IDbConnection GetConnection()
+    public IDbConnection GetConnection(string? databaseName = null)
     {
-        string connectionString = this.connectionStringProvider.GetConnectionString();
+        string connectionString = this.connectionStringProvider.GetConnectionString(databaseName);
 
         // var connection = new SqlConnection(connectionString);
         var connection = new NpgsqlConnection(connectionString);

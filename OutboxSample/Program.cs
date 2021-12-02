@@ -1,5 +1,6 @@
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Npgsql;
 using OutboxSample.Application;
 using OutboxSample.Infrastructure;
 using System.Data;
@@ -40,7 +41,7 @@ public class Program
     {
         var connectionFactory = services.GetRequiredService<IConnectionFactory>();
 
-        using (IDbConnection connection = connectionFactory.GetConnection())
+        using (IDbConnection connection = connectionFactory.GetConnection("postgres"))
         using (IDbCommand command = connection.CreateCommand())
         {
             connection.Open();
