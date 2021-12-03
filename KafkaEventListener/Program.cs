@@ -1,94 +1,133 @@
 ﻿using Confluent.Kafka;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using System.Text;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public async static Task Main(string[] args)
     {
-        CancellationTokenSource cancellation = new();
+        var host =
+           new HostBuilder()
+               .ConfigureServices((hostContext, services) =>
+                   services.AddHostedService<KafkaConsumerService>()
+                )
+               .UseConsoleLifetime()
+               .Build();
 
-        Console.CancelKeyPress += (s, e) => cancellation.Cancel();
-
-        RunKafkaLoop(cancellation.Token);
-
-        Console.WriteLine("Exiting..");
+        await host.RunAsync();
     }
 
-    private static void RunKafkaLoop(CancellationToken cancellationSignal)
+    class KafkaConsumerService : IHostedService
     {
-        while (cancellationSignal.IsCancellationRequested is not true) ;
+        private readonly CancellationTokenSource cancellation;
 
-        KafkaConsumerConfig config = new();
+        private Task? kafkaLoop;
 
-        var builder =
-            new ConsumerBuilder<string, UserAddedEvent>(config)
-                .SetValueDeserializer(new KafkaDeserializer<UserAddedEvent>());
-
-        using (IConsumer<string, UserAddedEvent> consumer = builder.Build())
+        public KafkaConsumerService()
         {
-            consumer.Subscribe(config.Topic);
+            this.cancellation = new CancellationTokenSource();
+        }
 
-            while (cancellationSignal.IsCancellationRequested == false)
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            this.kafkaLoop = Task.Run(() =>
             {
-                try
+                RunKafkaLoop(cancellation.Token);
+            });
+
+            Console.WriteLine("Kafka listerner started.");
+
+            return Task.CompletedTask;
+        }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            Console.WriteLine("Stopping service...");
+
+            this.cancellation.Cancel();
+            await kafkaLoop!;
+
+            Console.WriteLine("Service stopped.");
+        }
+
+        private static void RunKafkaLoop(CancellationToken cancellationSignal)
+        {
+            KafkaConsumerConfig config = new();
+
+            var builder =
+                new ConsumerBuilder<string, UserAddedEvent>(config)
+                    .SetValueDeserializer(new KafkaDeserializer<UserAddedEvent>());
+
+            using (IConsumer<string, UserAddedEvent> consumer = builder.Build())
+            {
+                consumer.Subscribe(config.Topic);
+
+                while (cancellationSignal.IsCancellationRequested is not true)
                 {
-                    ConsumeResult<string, UserAddedEvent> result = consumer.Consume(3000);
-
-                    if (result != null)
+                    try
                     {
-                        Console.WriteLine($"Key: {result.Message.Key}\nPayload: {result.Message.Value}");
+                        ConsumeResult<string, UserAddedEvent> result = consumer.Consume(cancellationSignal);
 
-                        consumer.Commit(result);
+                        if (result is not null)
+                        {
+                            Console.WriteLine($"Key: {result.Message.Key}\nPayload: {result.Message.Value}");
+
+                            consumer.Commit(result);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Console.WriteLine("Listening cancelled.");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Write(ex);
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.Write(ex);
-                }
+            }
+        }
+
+        private class KafkaDeserializer<T> : IDeserializer<T>
+        {
+            public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+            {
+                var dataJsonString = Encoding.UTF8.GetString(data);
+
+                // deserializing twice because of double serialization of event payload.
+                var normalizedJsonString = JsonConvert.DeserializeObject<string>(dataJsonString)!;
+
+                return JsonConvert.DeserializeObject<T>(normalizedJsonString)!;
+            }
+        }
+
+        private class KafkaConsumerConfig : ConsumerConfig
+        {
+            public string Topic { get; set; }
+            public KafkaConsumerConfig()
+            {
+                AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Earliest;
+                EnableAutoOffsetStore = false;
+                Topic = "user_events";
+                GroupId = "user_events_notification_group";
+                BootstrapServers = "localhost:9092";
             }
         }
     }
 
-    public class KafkaConsumerConfig : ConsumerConfig
+    public readonly record struct UserAddedEvent
     {
-        public string Topic { get; set; }
-        public KafkaConsumerConfig()
+        public Guid UserId { get; }
+        public string UserName { get; }
+
+        public UserAddedEvent(Guid userId, string userName)
         {
-            AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Earliest;
-            EnableAutoOffsetStore = false;
-            Topic = "user_events";
-            GroupId = "user_events_notification_group";
-            BootstrapServers = "localhost:9092";
+            ArgumentNullException.ThrowIfNull(userName, nameof(userName));
+
+            UserId = userId;
+            UserName = userName;
         }
-    }
-
-
-    internal sealed class KafkaDeserializer<T> : IDeserializer<T>
-    {
-        public T Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
-        {
-            var dataJsonString = Encoding.UTF8.GetString(data);
-
-            // deserializing twice because of double serialization of event payload.
-            var normalizedJsonString = JsonConvert.DeserializeObject<string>(dataJsonString)!;
-
-            return JsonConvert.DeserializeObject<T>(normalizedJsonString)!;
-        }
-    }
-
-    public /*readonly*/ record struct UserAddedEvent
-    {
-        public Guid UserId { get; set; }
-        public string UserName { get; set; }
-
-        //public UserAddedEvent(Guid userId, string userName)
-        //{
-        //    ArgumentNullException.ThrowIfNull(userName, nameof(userName));
-
-        //    UserId = userId;
-        //    UserName = userName;
-        //}
 
         //public UserAddedEvent()
         //{
