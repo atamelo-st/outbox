@@ -32,10 +32,10 @@ public class Program
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            this.kafkaLoop = Task.Run(() =>
+            this.kafkaLoop = Task.Factory.StartNew(() =>
             {
                 RunKafkaLoop(cancellation.Token);
-            });
+            }, TaskCreationOptions.LongRunning);
 
             Console.WriteLine("Kafka listerner started.");
 
@@ -62,29 +62,36 @@ public class Program
 
             using (IConsumer<string, UserAddedEvent> consumer = builder.Build())
             {
-                consumer.Subscribe(config.Topic);
-
-                while (cancellationSignal.IsCancellationRequested is not true)
+                try
                 {
-                    try
+                    consumer.Subscribe(config.Topic);
+
+                    while (cancellationSignal.IsCancellationRequested is not true)
                     {
-                        ConsumeResult<string, UserAddedEvent> result = consumer.Consume(cancellationSignal);
-
-                        if (result is not null)
+                        try
                         {
-                            Console.WriteLine($"Key: {result.Message.Key}\nPayload: {result.Message.Value}");
+                            ConsumeResult<string, UserAddedEvent> result = consumer.Consume(cancellationSignal);
 
-                            consumer.Commit(result);
+                            if (result is not null)
+                            {
+                                Console.WriteLine($"Key: {result.Message.Key}\nPayload: {result.Message.Value}");
+
+                                consumer.Commit(result);
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            Console.WriteLine("Listening cancelled.");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Write(ex);
                         }
                     }
-                    catch (OperationCanceledException)
-                    {
-                        Console.WriteLine("Listening cancelled.");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.Write(ex);
-                    }
+                }
+                finally
+                {
+                   consumer.Unsubscribe();
                 }
             }
         }
