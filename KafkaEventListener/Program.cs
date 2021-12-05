@@ -76,7 +76,8 @@ public class Program
                             {
                                 Console.WriteLine($"Key: {result.Message.Key}\nPayload: {result.Message.Value}");
 
-                                consumer.Commit(result);
+                                // NOTE: use .Commit for stricter control over possible duplicates
+                                consumer.StoreOffset(result);
                             }
                         }
                         catch (OperationCanceledException)
@@ -91,7 +92,7 @@ public class Program
                 }
                 finally
                 {
-                   consumer.Unsubscribe();
+                   consumer.Close();
                 }
             }
         }
