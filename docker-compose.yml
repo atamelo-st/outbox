@@ -3,14 +3,16 @@ version: '3.7'
 services:
 
   postgres:
-    image: debezium/postgres
-    container_name: postgres_outbox
+    image: debezium/postgres:13
+    container_name: postgres-outbox
     environment:
       POSTGRES_PASSWORD: admin
       POSTGRES_USER: admin
+      POSTGRES_DB: testdatabase
       PGDATA: /data/postgres_outbox
     volumes:
       - postgres:/data/postgres_outbox
+      - ./sql-scripts:/docker-entrypoint-initdb.d      
     ports:
       - 5499:5432
     networks: 
@@ -34,7 +36,7 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper_outbox
+    container_name: zookeeper-outbox
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -45,12 +47,12 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:latest
-    container_name: kafka_outbox
+    container_name: kafka-outbox
     depends_on:
-      - zookeeper_outbox
+      - zookeeper
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-outbox:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-outbox:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -65,15 +67,15 @@ services:
 
   connector:
     image: debezium/connect:latest
-    container_name: kafka_connect_with_debezium_outbox
+    container_name: kafka-connect-with-debezium-outbox
     depends_on:
-      - zookeeper_outbox
-      - kafka_outbox
+      - zookeeper
+      - kafka
     environment:
       GROUP_ID: 1
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
-      BOOTSTRAP_SERVERS: kafka:29092
+      BOOTSTRAP_SERVERS: kafka-outbox:29092
     ports:
       - "8083:8083"
     networks: 
@@ -82,11 +84,11 @@ services:
 
   kafdrop:
     image: obsidiandynamics/kafdrop:latest
-    container_name: kafdrop_outbox
+    container_name: kafdrop-outbox
     depends_on:
-      - kafka_outbox
+      - kafka
     environment:
-      KAFKA_BROKERCONNECT: kafka:29092
+      KAFKA_BROKERCONNECT: kafka-outbox:29092
     ports:
       - 9000:9000
     networks: 
