@@ -10,7 +10,7 @@ spec:
     - name: topics
       value: user_events
     - name: brokers
-      value: localhost:9093
+      value: localhost:9092
     - name: consumerGroup
       value: dapr-binding-group1
     - name: authRequired
