@@ -1,4 +1,3 @@
-using Dapr;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DaprListener.Controllers
@@ -14,8 +13,7 @@ namespace DaprListener.Controllers
             _logger = logger;
         }
         
-        [Topic("kafka-pubsub", "user_events")]
-        [HttpPost("/notify")]
+        [HttpPost("/user-added")]
         public object Notify(object userEvent)
         {
             this._logger.LogInformation("{userEvent}", userEvent);
