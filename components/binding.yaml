@@ -15,5 +15,5 @@ spec:
       value: dapr-binding-group1
     - name: authRequired
       value: "false"
-    - name: route
-      value: http://localhost:5076/user-added
+    # - name: route
+    #   value: /user-added
