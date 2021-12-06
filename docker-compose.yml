@@ -12,7 +12,7 @@ services:
       PGDATA: /data/postgres_outbox
     volumes:
       - postgres:/data/postgres_outbox
-      - ./sql-scripts:/docker-entrypoint-initdb.d      
+      - ./scripts/sql:/docker-entrypoint-initdb.d      
     ports:
       - 5499:5432
     networks: 
