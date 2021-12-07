@@ -76,13 +76,23 @@ services:
       CONFIG_STORAGE_TOPIC: my_connect_configs
       OFFSET_STORAGE_TOPIC: my_connect_offsets
       BOOTSTRAP_SERVERS: kafka-outbox:29092
-    volumes:
-      - ./scripts/debezium:/usr/local/bin/debezium
     ports:
       - "8083:8083"
     networks: 
       - broker-kafka
     restart: unless-stopped
+
+  connector-init:
+    image: curlimages/curl:latest
+    container_name: connector-init
+    depends_on:
+      - connector
+    entrypoint: [ "sh", "/usr/local/bin/debezium/init-debezium.sh" ]
+    networks:
+      - broker-kafka
+    restart: "no"
+    volumes:
+      - ./scripts/debezium:/usr/local/bin/debezium
 
   kafdrop:
     image: obsidiandynamics/kafdrop:latest

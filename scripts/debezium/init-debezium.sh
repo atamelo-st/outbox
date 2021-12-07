@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
+sleep 15;
 curl -H 'Content-Type: application/json' kafka-connect-with-debezium-outbox:8083/connectors --data '
 {
   "name": "outbox-connector",  
