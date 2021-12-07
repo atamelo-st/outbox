@@ -59,7 +59,7 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
             this.sharedConnection = sharedConnection;
         }
 
-        public IDbConnection GetConnection() => this.sharedConnection;
+        public IDbConnection GetConnection(string? databaseName = null) => this.sharedConnection;
     }
 }
 

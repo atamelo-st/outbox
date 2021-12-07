@@ -1,0 +1,19 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: user-added
+  namespace: default
+spec:
+  type: bindings.kafka
+  version: v1
+  metadata:
+    - name: topics
+      value: user_events
+    - name: brokers
+      value: localhost:9092
+    - name: consumerGroup
+      value: dapr-binding-group1
+    - name: authRequired
+      value: "false"
+    # - name: route
+    #   value: /user-added
