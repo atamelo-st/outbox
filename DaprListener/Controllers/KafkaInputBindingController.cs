@@ -16,15 +16,20 @@ namespace DaprListener.Controllers
         }
         
         [HttpPost("/user-added")]
-        public object Notify(JsonElement userEventJson)
+        public async Task<IActionResult> Notify(JsonElement userEventJson)
         {
             // TODO: move it to a separate model binder or find out if there is a way to configure it
             string jsonString = userEventJson.GetString()!;
             var userAddedEvent = JsonConvert.DeserializeObject<UserAddedEvent>(jsonString)!;
 
-            this._logger.LogInformation("Input binding: {userEvent}", userAddedEvent);
+            this._logger.LogInformation("Processing event for user {userId}...", userAddedEvent.UserId);
+            await Task.Delay(2000);
+            this._logger.LogInformation("Processing complete {userId}.", userAddedEvent.UserId);
+            this._logger.LogInformation("                                                         ");
+
+            // this._logger.LogInformation("Input binding: {userEvent}", userAddedEvent);
             
-            return Ok(userEventJson);
+            return Ok();
         }
 
         public readonly record struct UserAddedEvent
