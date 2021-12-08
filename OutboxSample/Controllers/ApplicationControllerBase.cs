@@ -1,17 +1,17 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application;
-using OutboxSample.Model;
+using OutboxSample.Model.Events;
 
 namespace OutboxSample.Controllers;
 
 public abstract class ApplicationControllerBase : ControllerBase
 {
-    protected IUnitOfWorkFactory UnitOfWork { get; }
+    protected IEventMetadataProvider EventMetadataProvider { get; }
     protected ITimeProvider TimeProvider { get; }
 
-    protected ApplicationControllerBase(IUnitOfWorkFactory unitOfWorkFactory, ITimeProvider timeProvider)
+    protected ApplicationControllerBase(IEventMetadataProvider eventMetadataProvider, ITimeProvider timeProvider)
     {
-        this.UnitOfWork = unitOfWorkFactory;
+        this.EventMetadataProvider = eventMetadataProvider;
         this.TimeProvider = timeProvider;
     }
 
@@ -21,13 +21,18 @@ public abstract class ApplicationControllerBase : ControllerBase
         uint aggregateVersion
     ) where TEvent : IEvent
     {
-        // TODO: infer from event type
-        string eventType = "";
-        string aggregateType = "";
-        uint eventSchemaVersion = 0;
+        EventMetadata eventMetadata = this.EventMetadataProvider.GetMetadataFor(@event);
 
         DateTime timestamp = this.TimeProvider.Now;
 
-        return new EventEnvelope<TEvent>(@event, eventType, aggregateId, aggregateType, timestamp, aggregateVersion, eventSchemaVersion);
+        return new EventEnvelope<TEvent>(
+            @event,
+            eventMetadata.EventType,
+            aggregateId,
+            eventMetadata.AgregateType,
+            timestamp,
+            aggregateVersion, 
+            eventMetadata.EventSchemaVersion
+        );
     }
 }

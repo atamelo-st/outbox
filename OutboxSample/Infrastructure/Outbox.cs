@@ -1,5 +1,5 @@
 ﻿using OutboxSample.Application;
-using OutboxSample.Model;
+using OutboxSample.Model.Events;
 using System.Data;
 using System.Text;
 using System.Text.Json;

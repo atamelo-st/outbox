@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application;
 using OutboxSample.Common;
 using OutboxSample.Model;
+using OutboxSample.Model.Events;
 
 namespace OutboxSample.Controllers;
 
@@ -17,9 +18,9 @@ public class UserController : ApplicationControllerBase
 
     public UserController(
         IUserRepository userRepository,
-        IUnitOfWorkFactory unitOfWorkFactory,
+        IEventMetadataProvider eventMetadataProvider,
         ITimeProvider timeProvider,
-        ILogger<UserController> logger) : base(unitOfWorkFactory, timeProvider)
+        ILogger<UserController> logger) : base(eventMetadataProvider, timeProvider)
     {
         this.userRepository = userRepository;
         this.logger = logger;
@@ -31,27 +32,15 @@ public class UserController : ApplicationControllerBase
         IEnumerable<User> users = this.userRepository.GetAll();
 
         return users;
-
-        // NOTE: this is just to test IUserRepository.GetAll() from a UnitOfWork
-        // a stupid use-case, but it should work!
-
-        //using (IUnitOfWork work = UnitOfWork.Begin())
-        //{
-        //    var repo = work.GetRepository<IUserRepository>();
-
-        //    IEnumerable<User> users = repo.GetAll();
-
-        //    return users;
-        //}
     }
 
 
     [HttpPost]
-    public IActionResult Post()
+    public IActionResult Post([FromServices] IUnitOfWorkFactory unitOfWork)
     {
         bool saved;
 
-        using (IUnitOfWork work = UnitOfWork.Begin())
+        using (IUnitOfWork work = unitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 
@@ -75,13 +64,12 @@ public class UserController : ApplicationControllerBase
     }
 
 
-
     [HttpPost("v2")]
-    public IActionResult PostV2()
+    public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
     {
         bool saved;
 
-        using (IUnitOfWork work = UnitOfWork.Begin())
+        using (IUnitOfWork work = unitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 
