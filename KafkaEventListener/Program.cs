@@ -23,11 +23,13 @@ public class Program
     {
         private readonly CancellationTokenSource cancellation;
 
-        private Task? kafkaLoop;
+        private Task kafkaLoop;
 
         public KafkaConsumerService()
         {
             this.cancellation = new CancellationTokenSource();
+
+            this.kafkaLoop = Task.CompletedTask;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -47,7 +49,7 @@ public class Program
             Console.WriteLine("Stopping service...");
 
             this.cancellation.Cancel();
-            await kafkaLoop!;
+            await kafkaLoop;
 
             Console.WriteLine("Service stopped.");
         }

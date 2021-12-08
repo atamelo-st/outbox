@@ -97,9 +97,17 @@ internal class DbConnectionProxy : IDbConnection
 
     // returning a _proxy_ for the ongoing transaction - 
     // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a _live_ transaction
+    // TODO: implement counter of opening requests?
     public IDbTransaction BeginTransaction()
     {
         this.EnsureHasBeenRequestedToOpen();
+
+        // TODO: `HasTransactionBeenExplicitlyRequested = true;` is not enough as a check - we need to mantain a counter.
+        // Plus, if we want to implement 'correct' repository usage - i.e. no transactions across repositories
+        // (and we should have 1 repo per an aggregate root) as an aggregate root is a consistency boundary itself -
+        // we should allow for the .BeginTransaction() to be called 2 times _tops_ - 1 time for inside the outbox implementation
+        // and 1 time inside a repo.
+        // Another, arguably better way to enfore hte rule "1 UoW means only 1 repo" would be in UnitOfWork.GetRepository
 
         // if a transaction has been explicitly requested by the user via .BeginTrnasaction
         // they are now supposed to commit/rollack it.
