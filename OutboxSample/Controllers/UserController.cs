@@ -8,19 +8,18 @@ namespace OutboxSample.Controllers;
 [Route("[controller]")]
 public class UserController : ApplicationControllerBase
 {
-    private readonly IUserRepository userRepository;
-    private readonly IOutbox outbox;
-    private readonly ILogger<UserController> logger;
+    // TODO: remove; it's just a temporary stand-in
+    private static readonly Guid rootApplicationAggregateId = Guid.Parse("ef1e8203-209c-4c83-9284-2da9e17ddd6e");
 
+    private readonly IUserRepository userRepository;
+    private readonly ILogger<UserController> logger;
 
     public UserController(
         IUserRepository userRepository,
-        IOutbox outbox,
         IUnitOfWorkFactory unitOfWorkFactory,
         ILogger<UserController> logger) : base(unitOfWorkFactory)
     {
         this.userRepository = userRepository;
-        this.outbox = outbox;
         this.logger = logger;
     }
 
@@ -60,12 +59,35 @@ public class UserController : ApplicationControllerBase
 
             IOutbox outbox = work.GetOutbox();
 
-            outbox.Send(new UserAddedEvent(newUser.Id, newUser.Name));
+            // TODO: replace Guid.NewGuid()
+            var userAddedEvent = new UserAddedEvent(Guid.NewGuid(), newUser.Id, newUser.Name);
+
+            // TODO: get agg version from the repo.Add response
+            EventEnvelope<UserAddedEvent> envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
+
+            outbox.Send(envelope);
 
             saved = work.Commit();
         }
 
         return Ok(saved ? "Saved" : "Not saved");
+    }
+
+    private static EventEnvelope<TEvent> WrapEvent<TEvent>(
+        TEvent @event,
+        Guid aggregateId,
+        uint aggregateVersion
+    ) where TEvent : IEvent
+    {
+        // TODO: infer from event type
+        string eventType = "";
+        string aggregateType = "";
+        uint eventSchemaVersion = 0;
+
+        // TODO: replace with time getter abstraction
+        DateTime timestamp = DateTime.Now; 
+
+        return new EventEnvelope<TEvent>(@event, eventType, aggregateId, aggregateType, timestamp, aggregateVersion, eventSchemaVersion);
     }
 
     [HttpPost("v2")]
@@ -92,7 +114,7 @@ public class UserController : ApplicationControllerBase
 
             IOutbox outbox = work.GetOutbox();
 
-            outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
+            // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
             saved = work.Commit();
         }

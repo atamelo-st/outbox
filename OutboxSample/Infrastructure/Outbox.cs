@@ -1,4 +1,5 @@
 ﻿using OutboxSample.Application;
+using OutboxSample.Model;
 using System.Data;
 using System.Text;
 using System.Text.Json;
@@ -7,9 +8,6 @@ namespace OutboxSample.Infrastructure;
 
 public class Outbox : IOutbox
 {
-    // TODO: remove that!! for testing only!!
-    private static readonly Guid aggregateId = Guid.Parse("44e36531-e00f-45a1-9082-98feee02dc95");
-
     private readonly IConnectionFactory connectionFactory;
 
     public Outbox(IConnectionFactory connectionFactory)
@@ -19,7 +17,7 @@ public class Outbox : IOutbox
         this.connectionFactory = connectionFactory;
     }
 
-    public bool Send<TEvent>(TEvent @event)
+    public bool Send<TEvent>(EventEnvelope<TEvent> envelope) where TEvent : IEvent
     {
         using IDbConnection connection = this.connectionFactory.GetConnection();
         connection.Open();
@@ -30,21 +28,24 @@ public class Outbox : IOutbox
             command.Transaction = transaction;
 
             command.CommandText = 
-@"INSERT INTO outbox_events(id, aggregate_type, aggregate_id, type, payload) VALUES(@EventId, @AggregateType, @AggregateId, @Type, @Payload)";
+@"
+INSERT INTO outbox_events
+    (id, aggregate_type, aggregate_id, type, payload, timestamp, aggregate_version, event_schema_version) 
+VALUES
+    (@EventId, @AggregateType, @AggregateId, @Type, @Payload, @Timestamp, @AggregateVersion, @EventSchemaVersion)
+";
             command.CommandType = CommandType.Text;
 
-            Guid eventId = Guid.NewGuid();
-            command.Parameters.Add(command.CreateParameter("@EventId", eventId, DbType.Guid));
+            command.Parameters.Add(command.CreateParameter("@EventId", envelope.EventId, DbType.Guid));
+            command.Parameters.Add(command.CreateParameter("@AggregateType", envelope.AggregateType));
+            command.Parameters.Add(command.CreateParameter("@AggregateId", envelope.AggregateId, DbType.Guid));
+            command.Parameters.Add(command.CreateParameter("@Type", envelope.EventType));
 
-            // TODO: remove! for testing only!
-            command.Parameters.Add(command.CreateParameter("@AggregateType", "application-aggregate"));
-            command.Parameters.Add(command.CreateParameter("@AggregateId", aggregateId, DbType.Guid));
-
-            // TODO: remove! the 'type' should be derived from the event itself!
-            command.Parameters.Add(command.CreateParameter("@Type", "application.user-added"));
-
-            string payload = Serialize(@event);
+            string payload = Serialize(envelope.Event);
             command.Parameters.Add(command.CreateParameter("@Payload", payload));
+            command.Parameters.Add(command.CreateParameter("@Timestamp", envelope.Timestamp));
+            command.Parameters.Add(command.CreateParameter("@AggregateVersion", envelope.AggregateVersion));
+            command.Parameters.Add(command.CreateParameter("@EventSchemaVersion", envelope.EventSchemaVersion));
 
             int count = command.ExecuteNonQuery();
 
