@@ -26,6 +26,7 @@ public class Program
 
     static void RegisterDependencies(ContainerBuilder containerBuilder)
     {
+        containerBuilder.RegisterType<DefaultTimeProvider>().As<ITimeProvider>().SingleInstance();
         containerBuilder.RegisterType<ConnectionStringProvider>().As<IConnectionStringProvider>().SingleInstance();
         containerBuilder.RegisterType<DefaultConnectionFactory>().As<IConnectionFactory>().SingleInstance();
         // TODO: per-scope?

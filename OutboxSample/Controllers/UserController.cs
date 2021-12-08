@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application;
+using OutboxSample.Common;
 using OutboxSample.Model;
 
 namespace OutboxSample.Controllers;
@@ -17,7 +18,8 @@ public class UserController : ApplicationControllerBase
     public UserController(
         IUserRepository userRepository,
         IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<UserController> logger) : base(unitOfWorkFactory)
+        ITimeProvider timeProvider,
+        ILogger<UserController> logger) : base(unitOfWorkFactory, timeProvider)
     {
         this.userRepository = userRepository;
         this.logger = logger;
@@ -53,17 +55,16 @@ public class UserController : ApplicationControllerBase
         {
             var repo = work.GetRepository<IUserRepository>();
 
-            User newUser = new(Guid.NewGuid(), DateTime.Now.ToString());
+            User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
 
             repo.Add(newUser);
 
             IOutbox outbox = work.GetOutbox();
 
-            // TODO: replace Guid.NewGuid()
-            var userAddedEvent = new UserAddedEvent(Guid.NewGuid(), newUser.Id, newUser.Name);
+            var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
             // TODO: get agg version from the repo.Add response
-            EventEnvelope<UserAddedEvent> envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
+            EventEnvelope<UserAddedEvent> envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
 
             outbox.Send(envelope);
 
@@ -73,22 +74,7 @@ public class UserController : ApplicationControllerBase
         return Ok(saved ? "Saved" : "Not saved");
     }
 
-    private static EventEnvelope<TEvent> WrapEvent<TEvent>(
-        TEvent @event,
-        Guid aggregateId,
-        uint aggregateVersion
-    ) where TEvent : IEvent
-    {
-        // TODO: infer from event type
-        string eventType = "";
-        string aggregateType = "";
-        uint eventSchemaVersion = 0;
 
-        // TODO: replace with time getter abstraction
-        DateTime timestamp = DateTime.Now; 
-
-        return new EventEnvelope<TEvent>(@event, eventType, aggregateId, aggregateType, timestamp, aggregateVersion, eventSchemaVersion);
-    }
 
     [HttpPost("v2")]
     public IActionResult PostV2()
