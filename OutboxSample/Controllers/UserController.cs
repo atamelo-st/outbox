@@ -90,6 +90,8 @@ public class UserController : ApplicationControllerBase
 
             // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
+            outbox.Send(Array.Empty<EventEnvelope>());
+
             saved = work.Commit();
         }
 

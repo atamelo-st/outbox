@@ -59,7 +59,7 @@ VALUES
         }
     }
 
-    public bool Send<TEvent>(IReadOnlyList<EventEnvelope<TEvent>> events) where TEvent : IEvent
+    public bool Send(IReadOnlyList<EventEnvelope> envelopes)
     {
         // TODO: create a transaction
         // TODO: add event deletion after published
@@ -68,7 +68,7 @@ VALUES
         {
             var commandText = new StringBuilder("INSERT INTO outbox (eventid, payload) VALUES ");
 
-            for (int i = 0; i < events.Count; i++)
+            for (int i = 0; i < envelopes.Count; i++)
             {
                 if (i != 0)
                 {
@@ -77,7 +77,7 @@ VALUES
                 // TODO: switch to `unnest` when on Postgres? https://github.com/npgsql/npgsql/issues/2779#issuecomment-573439342
                 commandText.Append("(@EventId").Append(i).Append(", @Body").Append(i).Append(')');
                 command.Parameters.Add(command.CreateParameter($"@EventId{i}", Guid.NewGuid(), DbType.Guid));
-                command.Parameters.Add(command.CreateParameter($"@Body{i}", Serialize(events[i]), DbType.String));
+                command.Parameters.Add(command.CreateParameter($"@Body{i}", Serialize(envelopes[i]), DbType.String));
             }
 
             command.CommandType = CommandType.Text;
