@@ -26,12 +26,26 @@ public class UserController : ApplicationControllerBase
         this.logger = logger;
     }
 
-    [HttpGet]
-    public IEnumerable<User> Get()
-    {
-        IEnumerable<User> users = this.userRepository.GetAll();
 
-        return users;
+    [HttpGet]
+    public IActionResult Get()
+    {
+        QueryResult queryResult = this.userRepository.GetAll();
+
+        IActionResult actionResult = queryResult switch
+        {
+            QueryResult.Success<IEnumerable<User>> success => Ok(success),
+            
+            //QueryResult.Failure.AlreadyExists failure => Conflict(failure.message),
+
+            //QueryResult.Failure.ConcurrencyConflict failure => Conflict(failure.message),
+
+            //QueryResult.Failure.NotFound failure => NotFound(failure.message),
+
+            _ => BadRequest("Something unxecpected happened."),
+        };
+
+        return actionResult;
     }
 
 

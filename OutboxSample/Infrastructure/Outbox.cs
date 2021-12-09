@@ -41,7 +41,7 @@ VALUES
             command.Parameters.Add(command.CreateParameter("@AggregateId", envelope.AggregateId, DbType.Guid));
             command.Parameters.Add(command.CreateParameter("@Type", envelope.EventType));
 
-            // TODO: easier to serialize with the envelope?
+            // TODO: does it make sense to serialize with the envelope?
             string payload = Serialize(envelope.Event);
             command.Parameters.Add(command.CreateParameter("@Payload", payload));
             command.Parameters.Add(command.CreateParameter("@Timestamp", envelope.Timestamp));

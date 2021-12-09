@@ -2,10 +2,9 @@
 
 namespace OutboxSample.Application;
 
-// TODO: introduce a concept of `RepositoryResponse`/`RepositoryResult`
 public interface IUserRepository : IRepository, ISupportUnitOfWork
 {
-    IEnumerable<User> GetAll();
+    QueryResult GetAll();
 
     User? Get(Guid id);
 
