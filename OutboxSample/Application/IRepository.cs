@@ -7,7 +7,7 @@ public interface IRepository
 
 public abstract record QueryResult
 {
-    public static Success<TData> OfSuccess<TData>(TData payload) => new Success<TData>(payload);
+    public static Success<TData> OfSuccess<TData>(TData data) => new Success<TData>(data);
 
     public sealed record Success<TData>(TData Data) : QueryResult<TData>, Success;
 
