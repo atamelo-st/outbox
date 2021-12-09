@@ -17,7 +17,7 @@ public class Outbox : IOutbox
         this.connectionFactory = connectionFactory;
     }
 
-    public bool Send<TEvent>(EventEnvelope<TEvent> envelope) where TEvent : IEvent
+    public bool Send(EventEnvelope envelope)
     {
         using IDbConnection connection = this.connectionFactory.GetConnection();
         connection.Open();

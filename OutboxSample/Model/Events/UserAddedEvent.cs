@@ -1,7 +1,7 @@
 ﻿namespace OutboxSample.Model.Events;
 
 [EventMetadata("user-added", "application-aggregate", 0)]
-public readonly record struct UserAddedEvent : IEvent
+public record UserAddedEvent : IEvent
 {
     public Guid UserId { get; }
     public string UserName { get; }
@@ -15,10 +15,5 @@ public readonly record struct UserAddedEvent : IEvent
         this.Id = Id;
         UserId = userId;
         UserName = userName;
-    }
-
-    public UserAddedEvent()
-    {
-        throw new NotSupportedException("Must use constructor with parameters.");
     }
 }

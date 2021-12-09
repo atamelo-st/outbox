@@ -15,7 +15,7 @@ public abstract class ApplicationControllerBase : ControllerBase
         this.TimeProvider = timeProvider;
     }
 
-    protected EventEnvelope<TEvent> WrapEvent<TEvent>(
+    protected EventEnvelope WrapEvent<TEvent>(
         TEvent @event,
         Guid aggregateId,
         uint aggregateVersion
@@ -25,7 +25,8 @@ public abstract class ApplicationControllerBase : ControllerBase
 
         DateTime timestamp = this.TimeProvider.Now;
 
-        return new EventEnvelope<TEvent>(
+        return new EventEnvelope(
+            // NOTE: if TEvent is a struct, this is where boxing will happen
             @event,
             eventMetadata.EventType,
             aggregateId,

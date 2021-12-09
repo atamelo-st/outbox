@@ -53,7 +53,7 @@ public class UserController : ApplicationControllerBase
             var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
             // TODO: get agg version from the repo.Add response
-            EventEnvelope<UserAddedEvent> envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
+            EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
 
             outbox.Send(envelope);
 
@@ -90,7 +90,7 @@ public class UserController : ApplicationControllerBase
 
             // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
-            outbox.Send(Array.Empty<EventEnvelope>());
+            // outbox.Send(Array.Empty<EventEnvelope>());
 
             saved = work.Commit();
         }
