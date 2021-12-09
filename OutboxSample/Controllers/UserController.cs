@@ -36,7 +36,7 @@ public class UserController : ApplicationControllerBase
 
 
     [HttpPost]
-    public IActionResult Post([FromServices] IUnitOfWorkFactory unitOfWork)
+    public IActionResult AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
     {
         bool saved;
 

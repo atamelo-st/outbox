@@ -1,5 +1,6 @@
 ﻿namespace OutboxSample.Model.Events;
 
+[EventMetadata("user-added", "application-aggregate", 0)]
 public readonly record struct UserAddedEvent : IEvent
 {
     public Guid UserId { get; }

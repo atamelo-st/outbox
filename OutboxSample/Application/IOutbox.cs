@@ -6,5 +6,5 @@ public interface IOutbox : ISupportUnitOfWork
 {
     bool Send<TEvent>(EventEnvelope<TEvent> envelope) where TEvent : IEvent;
 
-    bool SendMany<TEvent>(IReadOnlyList<TEvent> events);
+    bool Send<TEvent>(IReadOnlyList<EventEnvelope<TEvent>> events) where TEvent : IEvent;
 }

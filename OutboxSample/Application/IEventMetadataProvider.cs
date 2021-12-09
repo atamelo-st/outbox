@@ -1,33 +1,10 @@
 ﻿using OutboxSample.Model.Events;
-using System.Collections.Concurrent;
 
 namespace OutboxSample.Application;
 
 public interface IEventMetadataProvider
 {
     EventMetadata GetMetadataFor<TEvent>(TEvent @event) where TEvent : IEvent;
-}
-
-public class AttrbiuteSourcedEventMetadataProvider : IEventMetadataProvider
-{
-    private readonly ConcurrentDictionary<Type, EventMetadata> metadataStore;
-
-    public AttrbiuteSourcedEventMetadataProvider()
-    {
-        this.metadataStore = new ConcurrentDictionary<Type, EventMetadata>();
-    }
-
-    public EventMetadata GetMetadataFor<TEvent>(TEvent @event) where TEvent : IEvent
-    {
-        EventMetadata metadata = this.metadataStore.GetOrAdd(typeof(TEvent), ExtractMetadata);
-
-        return metadata;
-    }
-
-    private static EventMetadata ExtractMetadata(Type eventType)
-    {
-        throw new NotImplementedException();
-    }
 }
 
 public record struct EventMetadata
@@ -44,5 +21,10 @@ public record struct EventMetadata
         EventType = eventType;
         AgregateType = agregateType;
         EventSchemaVersion = eventSchemaVersion;
+    }
+
+    public EventMetadata()
+    {
+        throw new InvalidOperationException("Use constructor with parameters.");
     }
 }

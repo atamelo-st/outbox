@@ -41,6 +41,7 @@ VALUES
             command.Parameters.Add(command.CreateParameter("@AggregateId", envelope.AggregateId, DbType.Guid));
             command.Parameters.Add(command.CreateParameter("@Type", envelope.EventType));
 
+            // TODO: easier to serialize with the envelope?
             string payload = Serialize(envelope.Event);
             command.Parameters.Add(command.CreateParameter("@Payload", payload));
             command.Parameters.Add(command.CreateParameter("@Timestamp", envelope.Timestamp));
@@ -58,7 +59,7 @@ VALUES
         }
     }
 
-    public bool SendMany<TEvent>(IReadOnlyList<TEvent> events)
+    public bool Send<TEvent>(IReadOnlyList<EventEnvelope<TEvent>> events) where TEvent : IEvent
     {
         // TODO: create a transaction
         // TODO: add event deletion after published
