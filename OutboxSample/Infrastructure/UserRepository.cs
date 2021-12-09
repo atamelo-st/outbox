@@ -34,7 +34,7 @@ public class UserRepository : IUserRepository
             }
             catch (Exception)
             {
-                bool alreadyExists = false; //TODO: analyse exception to figure out if that's the case
+                bool alreadyExists = false; //TODO: analyze exception to figure out if that's the case
 
                 if (alreadyExists)
                 {

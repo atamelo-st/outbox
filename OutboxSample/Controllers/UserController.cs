@@ -53,13 +53,13 @@ public class UserController : ApplicationControllerBase
 
             QueryResult<int> addQueryResult = repo.Add(newUser);
 
-            if (addQueryResult is not QueryResult.Success)
+            if (addQueryResult is QueryResult.Failure)
             {
                 return addQueryResult switch
                 {
-                    QueryResult<int>.Failure.AlreadyExists failure => base.Conflict(failure.message),
+                    QueryResult<int>.Failure.AlreadyExists failure => base.Conflict($"User with Id=[{newUser.Id}] already exists."),
 
-                    QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.message),
+                    QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
 
                     _ => this.UnknownFailure(),
                 };
