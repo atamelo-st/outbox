@@ -14,7 +14,7 @@ public class UserRepository : IUserRepository
         this.connectionFactory = connectionFactory;
     }
 
-    public bool Add(User user)
+    public QueryResult<int> Add(User user)
     {
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (IDbCommand command = connection.CreateCommand())
@@ -26,13 +26,27 @@ public class UserRepository : IUserRepository
 
             connection.Open();
 
-            int count = command.ExecuteNonQuery();
+            try
+            {
+                int count = command.ExecuteNonQuery();
 
-            return count > 0;
+                return QueryResult.OfSuccess(count);
+            }
+            catch (Exception)
+            {
+                bool alreadyExists = false; //TODO: analyse exception to figure out if that's the case
+
+                if (alreadyExists)
+                {
+                    return QueryResult<int>.OfFailure.AlreadyExists();
+                }
+
+                throw;
+            }
         }
     }
 
-    public bool AddMany(IEnumerable<User> users)
+    public QueryResult<int> AddMany(IEnumerable<User> users)
     {
         int count = 0;
 
@@ -64,15 +78,15 @@ public class UserRepository : IUserRepository
 
         transaction.Commit();
 
-        return count > 0;
+        return QueryResult.OfSuccess(count);
     }
 
-    public bool Delete(Guid id)
+    public QueryResult<bool> Delete(Guid id)
     {
-        throw new NotImplementedException();
+        return QueryResult<bool>.OfFailure.NotFound(); // :) just a stub
     }
 
-    public User? Get(Guid id)
+    public QueryResult<User> Get(Guid id)
     {
         throw new NotImplementedException();
     }

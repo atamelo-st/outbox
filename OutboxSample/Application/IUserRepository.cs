@@ -6,11 +6,11 @@ public interface IUserRepository : IRepository, ISupportUnitOfWork
 {
     QueryResult<IEnumerable<User>> GetAll();
 
-    User? Get(Guid id);
+    QueryResult<User> Get(Guid id);
 
-    bool Add(User user);
+    QueryResult<int> Add(User user);
 
-    bool AddMany(IEnumerable<User> users);
+    QueryResult<int> AddMany(IEnumerable<User> users);
 
-    bool Delete(Guid id);
+    QueryResult<bool> Delete(Guid id);
 }

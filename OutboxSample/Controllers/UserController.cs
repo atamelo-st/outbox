@@ -29,19 +29,13 @@ public class UserController : ApplicationControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        QueryResult queryResult = this.userRepository.GetAll();
+        QueryResult<IEnumerable<User>> getAllQueryResult = this.userRepository.GetAll();
 
-        IActionResult actionResult = queryResult switch
+        IActionResult actionResult = getAllQueryResult switch
         {
-            QueryResult.Success<IEnumerable<User>> success => Ok(success.Payload),
-            
-            //QueryResult.Failure.AlreadyExists failure => Conflict(failure.message),
+            QueryResult.Success<IEnumerable<User>> success => Ok(success.Data),
 
-            //QueryResult.Failure.ConcurrencyConflict failure => Conflict(failure.message),
-
-            //QueryResult.Failure.NotFound failure => NotFound(failure.message),
-
-            _ => BadRequest("Something unxecpected happened."),
+            _ => this.UnknownFailure(),
         };
 
         return actionResult;
@@ -51,15 +45,25 @@ public class UserController : ApplicationControllerBase
     [HttpPost]
     public IActionResult AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
     {
-        bool saved;
-
         using (IUnitOfWork work = unitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
 
             User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
 
-            repo.Add(newUser);
+            QueryResult<int> addQueryResult = repo.Add(newUser);
+
+            if (addQueryResult is not QueryResult.Success)
+            {
+                return addQueryResult switch
+                {
+                    QueryResult<int>.Failure.AlreadyExists failure => base.Conflict(failure.message),
+
+                    QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.message),
+
+                    _ => this.UnknownFailure(),
+                };
+            }
 
             IOutbox outbox = work.GetOutbox();
 
@@ -70,18 +74,16 @@ public class UserController : ApplicationControllerBase
 
             outbox.Send(envelope);
 
-            saved = work.Commit();
-        }
+            bool saved = work.Commit();
 
-        return Ok(saved ? "Saved" : "Not saved");
+            return Ok(saved ? "User added." : "Not added.");
+        }
     }
 
 
     [HttpPost("v2")]
     public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
     {
-        bool saved;
-
         using (IUnitOfWork work = unitOfWork.Begin())
         {
             var repo = work.GetRepository<IUserRepository>();
@@ -92,9 +94,9 @@ public class UserController : ApplicationControllerBase
                 new(Guid.NewGuid(), DateTime.Now.ToString())
             };
 
-            bool added = repo.AddMany(users);
+            QueryResult<int> queryResult = repo.AddMany(users);
 
-            if (added is not true)
+            if (queryResult is not QueryResult.Success<int> recordsSaved)
             {
                 return Ok("Nothing added");
             }
@@ -103,11 +105,11 @@ public class UserController : ApplicationControllerBase
 
             // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
-            // outbox.Send(Array.Empty<EventEnvelope>());
+            bool saved = work.Commit();
 
-            saved = work.Commit();
+            return Ok(saved ? $"{recordsSaved.Data} records saved." : "Not saved.");
         }
-
-        return Ok(saved ? "Saved" : "Not saved");
     }
+
+    private IActionResult UnknownFailure() => base.StatusCode(500, "Something unexpected happened.");
 }
