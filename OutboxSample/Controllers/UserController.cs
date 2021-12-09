@@ -26,7 +26,6 @@ public class UserController : ApplicationControllerBase
         this.logger = logger;
     }
 
-
     [HttpGet]
     public IActionResult Get()
     {
@@ -34,7 +33,7 @@ public class UserController : ApplicationControllerBase
 
         IActionResult actionResult = queryResult switch
         {
-            QueryResult.Success<IEnumerable<User>> success => Ok(success),
+            QueryResult.Success<IEnumerable<User>> success => Ok(success.Payload),
             
             //QueryResult.Failure.AlreadyExists failure => Conflict(failure.message),
 

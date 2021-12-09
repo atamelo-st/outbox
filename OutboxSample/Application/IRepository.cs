@@ -4,6 +4,8 @@ public interface IRepository
 {
 }
 
+public abstract record QueryResult<TPayload> : QueryResult;
+
 public abstract record QueryResult
 {
     public static Success<TPayload> OfSuccess<TPayload>(TPayload payload) => new Success<TPayload>(payload);
@@ -17,7 +19,7 @@ public abstract record QueryResult
         public static Failure ConcurrencyConflict(string? message = null) => new Failure.ConcurrencyConflict(message);
     }
 
-    public record Success<TPayload> : QueryResult
+    public record Success<TPayload> : QueryResult<TPayload>
     {
         public TPayload Payload { get; }
 

@@ -4,7 +4,7 @@ namespace OutboxSample.Application;
 
 public interface IUserRepository : IRepository, ISupportUnitOfWork
 {
-    QueryResult GetAll();
+    QueryResult<IEnumerable<User>> GetAll();
 
     User? Get(Guid id);
 

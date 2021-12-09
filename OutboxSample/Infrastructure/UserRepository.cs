@@ -77,7 +77,7 @@ public class UserRepository : IUserRepository
         throw new NotImplementedException();
     }
 
-    public QueryResult GetAll()
+    public QueryResult<IEnumerable<User>> GetAll()
     {
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (var command = connection.CreateCommand())
@@ -99,7 +99,7 @@ public class UserRepository : IUserRepository
                     users.Add(new User(id, name));
                 }
 
-                return QueryResult.OfSuccess(users);
+                return QueryResult.OfSuccess(users.AsEnumerable());
             }
         }
     }
