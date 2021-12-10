@@ -1,4 +1,4 @@
-﻿using OutboxSample.Model.Events;
+﻿using OutboxSample.DomainModel.Events;
 
 namespace OutboxSample.Application.Eventing;
 

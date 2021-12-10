@@ -1,5 +1,6 @@
 ﻿using Autofac;
 using OutboxSample.Application;
+using OutboxSample.Infrastructure.DataAccess;
 using System.Data;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;

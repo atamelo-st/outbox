@@ -1,4 +1,4 @@
-﻿namespace OutboxSample.Model.Events;
+﻿namespace OutboxSample.DomainModel.Events;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false, Inherited = true)]
 public class EventMetadataAttribute : Attribute
@@ -9,8 +9,8 @@ public class EventMetadataAttribute : Attribute
 
     public EventMetadataAttribute(string eventType, string aggregateType, uint eventSchemaVersion)
     {
-        this.EventType = eventType;
-        this.AggregateType = aggregateType;
-        this.EventSchemaVersion = eventSchemaVersion;
+        EventType = eventType;
+        AggregateType = aggregateType;
+        EventSchemaVersion = eventSchemaVersion;
     }
 }

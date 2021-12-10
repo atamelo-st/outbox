@@ -6,6 +6,8 @@ using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
 using OutboxSample.Common;
 using OutboxSample.Infrastructure;
+using OutboxSample.Infrastructure.DataAccess;
+using OutboxSample.Infrastructure.Eventing;
 using System.Data;
 
 public class Program

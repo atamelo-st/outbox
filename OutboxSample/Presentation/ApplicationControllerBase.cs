@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application.Eventing;
 using OutboxSample.Common;
-using OutboxSample.Model.Events;
+using OutboxSample.DomainModel.Events;
 
 namespace OutboxSample.Presentation;
 

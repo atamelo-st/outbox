@@ -1,8 +1,8 @@
 ﻿using OutboxSample.Application.Eventing;
-using OutboxSample.Model.Events;
+using OutboxSample.DomainModel.Events;
 using System.Collections.Concurrent;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.Eventing;
 
 public sealed class AttributeSourcedEventMetadataProvider : IEventMetadataProvider
 {
@@ -10,7 +10,7 @@ public sealed class AttributeSourcedEventMetadataProvider : IEventMetadataProvid
 
     public AttributeSourcedEventMetadataProvider()
     {
-        this.metadataStore = new ConcurrentDictionary<Type, EventMetadata>();
+        metadataStore = new ConcurrentDictionary<Type, EventMetadata>();
     }
 
     public EventMetadata GetMetadataFor<TEvent>(TEvent @event) where TEvent : IEvent

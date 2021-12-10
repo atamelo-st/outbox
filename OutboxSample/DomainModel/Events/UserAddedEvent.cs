@@ -1,4 +1,4 @@
-﻿namespace OutboxSample.Model.Events;
+﻿namespace OutboxSample.DomainModel.Events;
 
 [EventMetadata("user-added", "application-aggregate", 0)]
 public record UserAddedEvent : IEvent

@@ -1,10 +1,11 @@
 ﻿using OutboxSample.Application.Eventing;
-using OutboxSample.Model.Events;
+using OutboxSample.DomainModel.Events;
+using OutboxSample.Infrastructure.DataAccess;
 using System.Data;
 using System.Text;
 using System.Text.Json;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.Eventing;
 
 public class Outbox : IOutbox
 {
@@ -19,7 +20,7 @@ public class Outbox : IOutbox
 
     public bool Send(EventEnvelope envelope)
     {
-        using IDbConnection connection = this.connectionFactory.GetConnection();
+        using IDbConnection connection = connectionFactory.GetConnection();
         connection.Open();
 
         using (IDbTransaction transaction = connection.BeginTransaction())
@@ -27,7 +28,7 @@ public class Outbox : IOutbox
         {
             command.Transaction = transaction;
 
-            command.CommandText = 
+            command.CommandText =
 @"
 INSERT INTO outbox_events
     (id, aggregate_type, aggregate_id, type, payload, timestamp, aggregate_version, event_schema_version) 
@@ -63,7 +64,7 @@ VALUES
     {
         // TODO: create a transaction
         // TODO: add event deletion after published
-        using (IDbConnection connection = this.connectionFactory.GetConnection())
+        using (IDbConnection connection = connectionFactory.GetConnection())
         using (IDbCommand command = connection.CreateCommand())
         {
             var commandText = new StringBuilder("INSERT INTO outbox (eventid, payload) VALUES ");

@@ -2,7 +2,7 @@
 using System.Data;
 using System.Data.SqlClient;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.DataAccess;
 
 public class DefaultConnectionFactory : IConnectionFactory
 {
@@ -17,7 +17,7 @@ public class DefaultConnectionFactory : IConnectionFactory
 
     public IDbConnection GetConnection(string? databaseName = null)
     {
-        string connectionString = this.connectionStringProvider.GetConnectionString(databaseName);
+        string connectionString = connectionStringProvider.GetConnectionString(databaseName);
 
         // var connection = new SqlConnection(connectionString);
         var connection = new NpgsqlConnection(connectionString);

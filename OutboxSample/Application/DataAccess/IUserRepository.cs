@@ -1,4 +1,4 @@
-﻿using OutboxSample.Model;
+﻿using OutboxSample.DomainModel;
 
 namespace OutboxSample.Application.DataAccess
 {

@@ -1,5 +1,6 @@
 ﻿using OutboxSample.Application.DataAccess;
-using OutboxSample.Model;
+using OutboxSample.DomainModel;
+using OutboxSample.Infrastructure.DataAccess;
 using System.Data;
 using System.Data.Common;
 

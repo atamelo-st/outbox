@@ -3,8 +3,8 @@ using OutboxSample.Application;
 using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
 using OutboxSample.Common;
-using OutboxSample.Model;
-using OutboxSample.Model.Events;
+using OutboxSample.DomainModel;
+using OutboxSample.DomainModel.Events;
 using static OutboxSample.Application.DataAccess.QueryResult;
 
 namespace OutboxSample.Presentation;

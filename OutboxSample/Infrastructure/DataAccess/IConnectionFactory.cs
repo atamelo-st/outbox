@@ -1,6 +1,6 @@
 ﻿using System.Data;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.DataAccess;
 
 public interface IConnectionFactory
 {

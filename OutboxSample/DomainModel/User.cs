@@ -1,4 +1,4 @@
-﻿namespace OutboxSample.Model;
+﻿namespace OutboxSample.DomainModel;
 
 public record User
 {

@@ -1,4 +1,4 @@
-﻿namespace OutboxSample.Model.Events;
+﻿namespace OutboxSample.DomainModel.Events;
 
 public interface IEvent
 {
@@ -33,12 +33,12 @@ public record EventEnvelope
         ArgumentNullException.ThrowIfNull(eventType, nameof(eventType));
         ArgumentNullException.ThrowIfNull(aggregateType, nameof(aggregateType));
 
-        this.Event = @event;
-        this.EventType = eventType;
-        this.AggregateId = aggregateId;
-        this.AggregateType = aggregateType;
-        this.Timestamp = timestamp;
-        this.AggregateVersion = aggregateVersion;
-        this.EventSchemaVersion = eventSchemaVersion;
+        Event = @event;
+        EventType = eventType;
+        AggregateId = aggregateId;
+        AggregateType = aggregateType;
+        Timestamp = timestamp;
+        AggregateVersion = aggregateVersion;
+        EventSchemaVersion = eventSchemaVersion;
     }
 }
