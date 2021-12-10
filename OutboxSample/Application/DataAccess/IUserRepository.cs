@@ -14,5 +14,7 @@ namespace OutboxSample.Application.DataAccess
         QueryResult<int> AddMany(IEnumerable<User> users, DateTime createdAt, uint startingVersion = 0);
 
         QueryResult<bool> Delete(Guid id);
+
+        // TODO: add 'update' API
     }
 }
