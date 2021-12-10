@@ -9,8 +9,8 @@ public class EventMetadataAttribute : Attribute
 
     public EventMetadataAttribute(string eventType, string aggregateType, uint eventSchemaVersion)
     {
-        EventType = eventType;
-        AggregateType = aggregateType;
-        EventSchemaVersion = eventSchemaVersion;
+        this.EventType = eventType;
+        this.AggregateType = aggregateType;
+        this.EventSchemaVersion = eventSchemaVersion;
     }
 }

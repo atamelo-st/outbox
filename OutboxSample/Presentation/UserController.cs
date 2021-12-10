@@ -25,6 +25,9 @@ public class UserController : ApplicationControllerBase
         ITimeProvider timeProvider,
         ILogger<UserController> logger) : base(eventMetadataProvider, timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(userRepository, nameof(userRepository));
+        ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+
         this.userRepository = userRepository;
         this.logger = logger;
     }

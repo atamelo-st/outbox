@@ -14,6 +14,8 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     public UnitOfWorkFactory(ILifetimeScope container)
     {
+        ArgumentNullException.ThrowIfNull(container, nameof(container));
+
         this.container = container;
     }
 

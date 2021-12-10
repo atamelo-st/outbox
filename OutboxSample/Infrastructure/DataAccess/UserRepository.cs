@@ -12,6 +12,8 @@ public class UserRepository : IUserRepository
 
     public UserRepository(IConnectionFactory connectionFactory)
     {
+        ArgumentNullException.ThrowIfNull(connectionFactory, nameof(connectionFactory));
+
         this.connectionFactory = connectionFactory;
     }
 
