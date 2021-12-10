@@ -52,7 +52,6 @@ public abstract record QueryResult<TExpectedData> : QueryResult
 
 public static class DataStore
 {
-    // NOTE: need to watch out for how much data it carries around as after some threshold it might make sense to conver it to ref-type record
     public readonly record struct Item<TData>(TData Data, ItemMetadata Metadata);
 
     public readonly record struct ItemMetadata(DateTime CreateAt, DateTime UpatedAt, uint Version)
