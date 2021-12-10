@@ -2,7 +2,6 @@
 using OutboxSample.Application;
 using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
-using System.Data;
 
 namespace OutboxSample.Infrastructure;
 
@@ -12,7 +11,6 @@ internal record UnitOfWork : IUnitOfWork
     private readonly DbConnectionProxy connectionProxy;
 
     private State state;
-
 
     public UnitOfWork(ILifetimeScope dependencyResolver, DbConnectionProxy connectionProxy)
     {
