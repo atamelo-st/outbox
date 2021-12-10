@@ -4,6 +4,8 @@ namespace OutboxSample.Application.DataAccess
 {
     public interface IUserRepository : IRepository, ISupportUnitOfWork
     {
+        // TODO: IEnumerable<> might not be descriptive enough in some cases. E.g. hen you return a paginated result.
+        // Think of a deicated 'slice' type. Smth like PageResult<T> {ItemCount: int, ItemsTotal: int, Items:T[] }
         QueryResult<IEnumerable<DataStore.Item<User>>> GetAll();
 
         QueryResult<User> Get(Guid id);
