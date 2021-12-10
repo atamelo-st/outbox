@@ -26,6 +26,7 @@ public static class IDbCommandExtensions
         return parameter;
     }
 
+    // TODO: when switched to Postgres provider, user strongly typed parameter creation method to avoid parameter value boxing
     public static DbParameter CreateParameter(this IDbCommand command, string parameterName, object? parameterValue)
     {
         var parameter =  (DbParameter)command.CreateParameter();

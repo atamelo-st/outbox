@@ -3,6 +3,7 @@ using OutboxSample.Application;
 using OutboxSample.Common;
 using OutboxSample.Model;
 using OutboxSample.Model.Events;
+using static OutboxSample.Application.QueryResult;
 
 namespace OutboxSample.Controllers;
 
@@ -27,13 +28,15 @@ public class UserController : ApplicationControllerBase
     }
 
     [HttpGet]
+    // TODO: return smth like GetUsersResponse
     public IActionResult Get()
     {
-        QueryResult<IEnumerable<User>> getAllQueryResult = this.userRepository.GetAll();
+        QueryResult<IEnumerable<DataStoreItem<User>>> getAllQueryResult = this.userRepository.GetAll();
 
         IActionResult actionResult = getAllQueryResult switch
         {
-            QueryResult.Success<IEnumerable<User>> success => Ok(success.Data),
+            // TODO: convert data + matadata into response
+            Success<IEnumerable<DataStoreItem<User>>> success => Ok(success.Data),
 
             _ => this.UnknownFailure(),
         };
@@ -43,6 +46,8 @@ public class UserController : ApplicationControllerBase
 
 
     [HttpPost]
+    // TODO: introduce AddUserCommand
+    // TODO: separate presentation logic and application logic - introduce smth like User-Command-Query-Handler (might be UseService for starters..)
     public IActionResult AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
     {
         using (IUnitOfWork work = unitOfWork.Begin())
@@ -51,7 +56,8 @@ public class UserController : ApplicationControllerBase
 
             User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
 
-            QueryResult<int> addQueryResult = repo.Add(newUser);
+            uint startingVersion = 0;
+            QueryResult<int> addQueryResult = repo.Add(newUser, createdAt: this.TimeProvider.Now, startingVersion);
 
             if (addQueryResult is QueryResult.Failure)
             {
@@ -69,8 +75,7 @@ public class UserController : ApplicationControllerBase
 
             var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
-            // TODO: get agg version from the repo.Add response
-            EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, 0);
+            EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
 
             outbox.Send(envelope);
 
@@ -94,7 +99,7 @@ public class UserController : ApplicationControllerBase
                 new(Guid.NewGuid(), DateTime.Now.ToString())
             };
 
-            QueryResult<int> queryResult = repo.AddMany(users);
+            QueryResult<int> queryResult = repo.AddMany(users, createdAt: this.TimeProvider.Now, startingVersion: 0);
 
             if (queryResult is not QueryResult.Success<int> recordsSaved)
             {

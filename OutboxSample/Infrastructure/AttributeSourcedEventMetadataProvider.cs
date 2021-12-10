@@ -4,11 +4,11 @@ using System.Collections.Concurrent;
 
 namespace OutboxSample.Infrastructure;
 
-public class AttrbiuteSourcedEventMetadataProvider : IEventMetadataProvider
+public sealed class AttributeSourcedEventMetadataProvider : IEventMetadataProvider
 {
     private readonly ConcurrentDictionary<Type, EventMetadata> metadataStore;
 
-    public AttrbiuteSourcedEventMetadataProvider()
+    public AttributeSourcedEventMetadataProvider()
     {
         this.metadataStore = new ConcurrentDictionary<Type, EventMetadata>();
     }

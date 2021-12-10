@@ -14,15 +14,18 @@ public class UserRepository : IUserRepository
         this.connectionFactory = connectionFactory;
     }
 
-    public QueryResult<int> Add(User user)
+    public QueryResult<int> Add(User user, DateTime createdAt, uint startingVersion = 0)
     {
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (IDbCommand command = connection.CreateCommand())
         {
-            command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
+            command.CommandText = "INSERT INTO users(id, name, created_at, updated_at, version) VALUES(@Id, @Name, @CreatedAt, @UpdatedAt, @Version)";
             command.CommandType = CommandType.Text;
-            command.Parameters.Add(command.CreateParameter("@pID", user.Id));
-            command.Parameters.Add(command.CreateParameter("@pName", user.Name));
+            command.Parameters.Add(command.CreateParameter("@Id", user.Id));
+            command.Parameters.Add(command.CreateParameter("@Name", user.Name));
+            command.Parameters.Add(command.CreateParameter("@CreatedAt", createdAt));
+            command.Parameters.Add(command.CreateParameter("@UpdatedAt", createdAt));
+            command.Parameters.Add(command.CreateParameter("@Version", startingVersion));
 
             connection.Open();
 
@@ -30,7 +33,8 @@ public class UserRepository : IUserRepository
             {
                 int count = command.ExecuteNonQuery();
 
-                return QueryResult.OfSuccess(count);
+                // NOTE: returning empty metadata is metadata is not read from the db upon adding a user and nown upfront
+                return QueryResult.OfSuccess(count, QueryResult.ItemMetadata.Empty);
             }
             catch (Exception)
             {
@@ -46,27 +50,32 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public QueryResult<int> AddMany(IEnumerable<User> users)
+    public QueryResult<int> AddMany(IEnumerable<User> users, DateTime createdAt, uint startingVersion = 0)
     {
-        int count = 0;
-
         using IDbConnection connection = this.connectionFactory.GetConnection();
         connection.Open();
         using IDbTransaction transaction = connection.BeginTransaction();
 
         using IDbCommand command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT INTO users VALUES(@pID, @pName)";
+        command.CommandText = "INSERT INTO users(id, name, created_at, updated_at, version) VALUES(@Id, @Name, @CreatedAt, @UpdatedAt, @Version)";
         command.CommandType = CommandType.Text;
 
-        DbParameter idParameter = command.CreateParameter("@pID", DbType.Guid);
-        DbParameter nameParamenter = command.CreateParameter("@pName", DbType.String, 50);
+        DbParameter idParameter = command.CreateParameter("@Id", DbType.Guid);
+        DbParameter nameParamenter = command.CreateParameter("@Name", DbType.String, 50);
 
         command.Parameters.Add(idParameter);
         command.Parameters.Add(nameParamenter);
+        command.Parameters.Add(command.CreateParameter("@CreatedAt", createdAt));
+        command.Parameters.Add(command.CreateParameter("@UpdatedAt", createdAt));
+        command.Parameters.Add(command.CreateParameter("@Version", startingVersion));
+
         // TODO: switch to the `unnest` function. Details: https://github.com/npgsql/npgsql/issues/2779#issuecomment-573439342
         // OR the new batching API for Postgres: https://www.roji.org/parameters-batching-and-sql-rewriting
+        // OR just SB-base 'batching' as one in the Outbox implemetation
         command.Prepare();
+
+        int count = 0;
 
         foreach (User user in users)
         {
@@ -78,7 +87,7 @@ public class UserRepository : IUserRepository
 
         transaction.Commit();
 
-        return QueryResult.OfSuccess(count);
+        return QueryResult.OfSuccess(count, QueryResult.ItemMetadata.Empty);
     }
 
     public QueryResult<bool> Delete(Guid id)
@@ -91,7 +100,7 @@ public class UserRepository : IUserRepository
         throw new NotImplementedException();
     }
 
-    public QueryResult<IEnumerable<User>> GetAll()
+    public QueryResult<IEnumerable<QueryResult.DataStoreItem<User>>> GetAll()
     {
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (var command = connection.CreateCommand())
@@ -101,19 +110,26 @@ public class UserRepository : IUserRepository
 
             connection.Open();
 
+            // TODO: replace with Dapper
             using (IDataReader dataReader = command.ExecuteReader())
             {
-                List<User> users = new();
+                List<QueryResult.DataStoreItem<User>> queryResult = new();
 
                 while (dataReader.Read())
                 {
                     Guid id = dataReader.GetGuid(dataReader.GetOrdinal("id"));
                     string name = dataReader.GetString(dataReader.GetOrdinal("name"));
+                    User user = new(id, name);
 
-                    users.Add(new User(id, name));
+                    DateTime createdAt = dataReader.GetDateTime(dataReader.GetOrdinal("created_at"));
+                    DateTime updatedAt = dataReader.GetDateTime(dataReader.GetOrdinal("updated_at"));
+                    uint version = (uint)dataReader.GetInt32(dataReader.GetOrdinal("version"));
+                    QueryResult.ItemMetadata metadata = new(createdAt, updatedAt, version);
+
+                    queryResult.Add(new(user, metadata));
                 }
 
-                return QueryResult.OfSuccess(users.AsEnumerable());
+                return QueryResult.OfSuccess(queryResult.AsEnumerable(), QueryResult.ItemMetadata.Empty);
             }
         }
     }

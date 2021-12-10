@@ -7,13 +7,22 @@ public interface IRepository
 
 public abstract record QueryResult
 {
-    public static Success<TData> OfSuccess<TData>(TData data) => new Success<TData>(data);
+    public static Success<TData> OfSuccess<TData>(TData data, ItemMetadata metadata) => new(data, metadata);
 
-    public sealed record Success<TData>(TData Data) : QueryResult<TData>, Success;
+    public sealed record Success<TData>(TData Data, ItemMetadata Metadata) : QueryResult<TData>, Success;
 
     public interface Success { }
 
     public interface Failure { }
+
+    public readonly record struct ItemMetadata(DateTime CreateAt, DateTime UpatedAt, uint Version)
+    {
+        public static readonly ItemMetadata Empty = new();
+
+        public bool IsEmpty() => this == Empty;
+    }
+
+    public readonly record struct DataStoreItem<TData>(TData Data, ItemMetadata Metadata);
 }
 
 public abstract record QueryResult<TExpectedData> : QueryResult
@@ -35,7 +44,7 @@ public abstract record QueryResult<TExpectedData> : QueryResult
 
         public sealed record ConcurrencyConflict(string Message) : Failure(Message, ErrorCode.ConcurrencyConflict);
 
-        public Failure(string message, ErrorCode errorCode) : this(new Description(message, errorCode))
+        protected Failure(string message, ErrorCode errorCode) : this(new Description(message, errorCode))
         { }
 
         public readonly record struct Description(string Text, ErrorCode ErrorCode);
