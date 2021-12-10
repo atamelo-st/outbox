@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using OutboxSample.Application;
+using OutboxSample.Application.Eventing;
+using OutboxSample.Common;
 using OutboxSample.Model.Events;
 
-namespace OutboxSample.Controllers;
+namespace OutboxSample.Presentation;
 
 public abstract class ApplicationControllerBase : ControllerBase
 {
@@ -11,8 +12,8 @@ public abstract class ApplicationControllerBase : ControllerBase
 
     protected ApplicationControllerBase(IEventMetadataProvider eventMetadataProvider, ITimeProvider timeProvider)
     {
-        this.EventMetadataProvider = eventMetadataProvider;
-        this.TimeProvider = timeProvider;
+        EventMetadataProvider = eventMetadataProvider;
+        TimeProvider = timeProvider;
     }
 
     protected EventEnvelope WrapEvent<TEvent>(
@@ -21,9 +22,9 @@ public abstract class ApplicationControllerBase : ControllerBase
         uint aggregateVersion
     ) where TEvent : IEvent
     {
-        EventMetadata eventMetadata = this.EventMetadataProvider.GetMetadataFor(@event);
+        EventMetadata eventMetadata = EventMetadataProvider.GetMetadataFor(@event);
 
-        DateTime timestamp = this.TimeProvider.Now;
+        DateTime timestamp = TimeProvider.UtcNow;
 
         return new EventEnvelope(
             // NOTE: if TEvent is a struct, this is where boxing will happen
@@ -32,7 +33,7 @@ public abstract class ApplicationControllerBase : ControllerBase
             aggregateId,
             eventMetadata.AgregateType,
             timestamp,
-            aggregateVersion, 
+            aggregateVersion,
             eventMetadata.EventSchemaVersion
         );
     }

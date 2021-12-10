@@ -2,6 +2,9 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Npgsql;
 using OutboxSample.Application;
+using OutboxSample.Application.DataAccess;
+using OutboxSample.Application.Eventing;
+using OutboxSample.Common;
 using OutboxSample.Infrastructure;
 using System.Data;
 

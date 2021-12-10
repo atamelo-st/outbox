@@ -1,5 +1,7 @@
 ﻿using Autofac;
 using OutboxSample.Application;
+using OutboxSample.Application.DataAccess;
+using OutboxSample.Application.Eventing;
 using System.Data;
 
 namespace OutboxSample.Infrastructure;

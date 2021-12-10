@@ -1,4 +1,4 @@
-﻿using OutboxSample.Application;
+﻿using OutboxSample.Application.DataAccess;
 using OutboxSample.Model;
 using System.Data;
 using System.Data.Common;
@@ -34,7 +34,7 @@ public class UserRepository : IUserRepository
                 int count = command.ExecuteNonQuery();
 
                 // NOTE: returning empty metadata is metadata is not read from the db upon adding a user and nown upfront
-                return QueryResult.OfSuccess(count, QueryResult.ItemMetadata.Empty);
+                return QueryResult.OfSuccess(count, DataStore.ItemMetadata.Empty);
             }
             catch (Exception)
             {
@@ -87,7 +87,7 @@ public class UserRepository : IUserRepository
 
         transaction.Commit();
 
-        return QueryResult.OfSuccess(count, QueryResult.ItemMetadata.Empty);
+        return QueryResult.OfSuccess(count, DataStore.ItemMetadata.Empty);
     }
 
     public QueryResult<bool> Delete(Guid id)
@@ -100,7 +100,7 @@ public class UserRepository : IUserRepository
         throw new NotImplementedException();
     }
 
-    public QueryResult<IEnumerable<QueryResult.DataStoreItem<User>>> GetAll()
+    public QueryResult<IEnumerable<DataStore.Item<User>>> GetAll()
     {
         using (IDbConnection connection = this.connectionFactory.GetConnection())
         using (var command = connection.CreateCommand())
@@ -113,7 +113,7 @@ public class UserRepository : IUserRepository
             // TODO: replace with Dapper
             using (IDataReader dataReader = command.ExecuteReader())
             {
-                List<QueryResult.DataStoreItem<User>> queryResult = new();
+                List<DataStore.Item<User>> queryResult = new();
 
                 while (dataReader.Read())
                 {
@@ -124,12 +124,12 @@ public class UserRepository : IUserRepository
                     DateTime createdAt = dataReader.GetDateTime(dataReader.GetOrdinal("created_at"));
                     DateTime updatedAt = dataReader.GetDateTime(dataReader.GetOrdinal("updated_at"));
                     uint version = (uint)dataReader.GetInt32(dataReader.GetOrdinal("version"));
-                    QueryResult.ItemMetadata metadata = new(createdAt, updatedAt, version);
+                    DataStore.ItemMetadata metadata = new(createdAt, updatedAt, version);
 
                     queryResult.Add(new(user, metadata));
                 }
 
-                return QueryResult.OfSuccess(queryResult.AsEnumerable(), QueryResult.ItemMetadata.Empty);
+                return QueryResult.OfSuccess(queryResult.AsEnumerable(), DataStore.ItemMetadata.Empty);
             }
         }
     }

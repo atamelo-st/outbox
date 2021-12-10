@@ -1,6 +1,6 @@
 ﻿using OutboxSample.Model.Events;
 
-namespace OutboxSample.Application;
+namespace OutboxSample.Application.Eventing;
 
 public interface IOutbox : ISupportUnitOfWork
 {

@@ -1,4 +1,7 @@
-﻿namespace OutboxSample.Application;
+﻿using OutboxSample.Application.DataAccess;
+using OutboxSample.Application.Eventing;
+
+namespace OutboxSample.Application;
 
 public interface IUnitOfWork : IDisposable
 {

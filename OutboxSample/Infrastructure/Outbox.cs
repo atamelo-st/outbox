@@ -1,4 +1,4 @@
-﻿using OutboxSample.Application;
+﻿using OutboxSample.Application.Eventing;
 using OutboxSample.Model.Events;
 using System.Data;
 using System.Text;

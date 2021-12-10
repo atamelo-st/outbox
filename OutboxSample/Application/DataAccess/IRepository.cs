@@ -1,28 +1,18 @@
-﻿namespace OutboxSample.Application;
+﻿namespace OutboxSample.Application.DataAccess;
 
 public interface IRepository
 {
 }
 
-
 public abstract record QueryResult
 {
-    public static Success<TData> OfSuccess<TData>(TData data, ItemMetadata metadata) => new(data, metadata);
+    public static Success<TData> OfSuccess<TData>(TData data, DataStore.ItemMetadata metadata) => new(data, metadata);
 
-    public sealed record Success<TData>(TData Data, ItemMetadata Metadata) : QueryResult<TData>, Success;
+    public sealed record Success<TData>(TData Data, DataStore.ItemMetadata Metadata) : QueryResult<TData>, Success;
 
     public interface Success { }
 
     public interface Failure { }
-
-    public readonly record struct ItemMetadata(DateTime CreateAt, DateTime UpatedAt, uint Version)
-    {
-        public static readonly ItemMetadata Empty = new();
-
-        public bool IsEmpty() => this == Empty;
-    }
-
-    public readonly record struct DataStoreItem<TData>(TData Data, ItemMetadata Metadata);
 }
 
 public abstract record QueryResult<TExpectedData> : QueryResult
@@ -52,7 +42,7 @@ public abstract record QueryResult<TExpectedData> : QueryResult
         public enum ErrorCode
         {
             Undefined = 0,
-            // Unexpectd = 1,
+            // Unexpected = 1,
             NotFound = 2,
             AlreadyExists = 3,
             ConcurrencyConflict = 4,
@@ -60,3 +50,19 @@ public abstract record QueryResult<TExpectedData> : QueryResult
     }
 }
 
+public static class DataStore
+{
+    // NOTE: need to watch out for how much data it carries around as after some threshold it might make sense to conver it to ref-type record
+    public readonly record struct Item<TData>(TData Data, ItemMetadata Metadata);
+
+    public readonly record struct ItemMetadata(DateTime CreateAt, DateTime UpatedAt, uint Version)
+    {
+        private readonly bool isEmpty = false;
+
+        public static readonly ItemMetadata Empty = new();
+
+        public bool IsEmpty => this.isEmpty;
+
+        public ItemMetadata() : this(default, default, default) => this.isEmpty = true;
+    }
+}

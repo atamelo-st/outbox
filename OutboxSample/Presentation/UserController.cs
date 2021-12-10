@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application;
+using OutboxSample.Application.DataAccess;
+using OutboxSample.Application.Eventing;
 using OutboxSample.Common;
 using OutboxSample.Model;
 using OutboxSample.Model.Events;
-using static OutboxSample.Application.QueryResult;
+using static OutboxSample.Application.DataAccess.QueryResult;
 
-namespace OutboxSample.Controllers;
+namespace OutboxSample.Presentation;
 
 [ApiController]
 [Route("[controller]")]
@@ -28,17 +30,17 @@ public class UserController : ApplicationControllerBase
     }
 
     [HttpGet]
-    // TODO: return smth like GetUsersResponse
+    // TODO: return smth like GetUsersResponse.
     public IActionResult Get()
     {
-        QueryResult<IEnumerable<DataStoreItem<User>>> getAllQueryResult = this.userRepository.GetAll();
+        QueryResult<IEnumerable<DataStore.Item<User>>> getAllQueryResult = userRepository.GetAll();
 
         IActionResult actionResult = getAllQueryResult switch
         {
-            // TODO: convert data + matadata into response
-            Success<IEnumerable<DataStoreItem<User>>> success => Ok(success.Data),
+            // TODO: convert data + matadata into a response
+            Success<IEnumerable<DataStore.Item<User>>> success => Ok(success.Data),
 
-            _ => this.UnknownFailure(),
+            _ => UnknownFailure(),
         };
 
         return actionResult;
@@ -57,9 +59,9 @@ public class UserController : ApplicationControllerBase
             User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
 
             uint startingVersion = 0;
-            QueryResult<int> addQueryResult = repo.Add(newUser, createdAt: this.TimeProvider.Now, startingVersion);
+            QueryResult<int> addQueryResult = repo.Add(newUser, createdAt: TimeProvider.UtcNow, startingVersion);
 
-            if (addQueryResult is QueryResult.Failure)
+            if (addQueryResult is Failure)
             {
                 return addQueryResult switch
                 {
@@ -67,7 +69,7 @@ public class UserController : ApplicationControllerBase
 
                     QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
 
-                    _ => this.UnknownFailure(),
+                    _ => UnknownFailure(),
                 };
             }
 
@@ -75,7 +77,7 @@ public class UserController : ApplicationControllerBase
 
             var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
-            EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
+            EventEnvelope envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
 
             outbox.Send(envelope);
 
@@ -99,9 +101,9 @@ public class UserController : ApplicationControllerBase
                 new(Guid.NewGuid(), DateTime.Now.ToString())
             };
 
-            QueryResult<int> queryResult = repo.AddMany(users, createdAt: this.TimeProvider.Now, startingVersion: 0);
+            QueryResult<int> queryResult = repo.AddMany(users, createdAt: TimeProvider.UtcNow, startingVersion: 0);
 
-            if (queryResult is not QueryResult.Success<int> recordsSaved)
+            if (queryResult is not Success<int> recordsSaved)
             {
                 return Ok("Nothing added");
             }
