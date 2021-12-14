@@ -235,7 +235,7 @@ internal class DbCommandProxy : IDbCommand, IDbCommandProxy
 
     public IDataReader ExecuteReader(CommandBehavior behavior) => this.LiveCommand.ExecuteReader(behavior);
 
-    public object? ExecuteScalar() => this.ExecuteScalar();
+    public object? ExecuteScalar() => this.LiveCommand.ExecuteScalar();
 
     public void Prepare() => this.LiveCommand.Prepare();
 }
