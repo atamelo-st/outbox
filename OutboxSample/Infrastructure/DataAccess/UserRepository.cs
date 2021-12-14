@@ -28,7 +28,7 @@ public class UserRepository : IUserRepository
             command.Parameters.Add(command.CreateParameter("@Name", user.Name));
             command.Parameters.Add(command.CreateParameter("@CreatedAt", createdAt));
             command.Parameters.Add(command.CreateParameter("@UpdatedAt", createdAt));
-            command.Parameters.Add(command.CreateParameter("@Version", startingVersion));
+            command.Parameters.Add(command.CreateParameter("@Version", (int) startingVersion));
 
             connection.Open();
 
@@ -71,7 +71,7 @@ public class UserRepository : IUserRepository
         command.Parameters.Add(nameParamenter);
         command.Parameters.Add(command.CreateParameter("@CreatedAt", createdAt));
         command.Parameters.Add(command.CreateParameter("@UpdatedAt", createdAt));
-        command.Parameters.Add(command.CreateParameter("@Version", startingVersion));
+        command.Parameters.Add(command.CreateParameter("@Version", (int) startingVersion));
 
         // TODO: switch to the `unnest` function. Details: https://github.com/npgsql/npgsql/issues/2779#issuecomment-573439342
         // OR the new batching API for Postgres: https://www.roji.org/parameters-batching-and-sql-rewriting

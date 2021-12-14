@@ -46,8 +46,8 @@ VALUES
             string payload = Serialize(envelope.Event);
             command.Parameters.Add(command.CreateParameter("@Payload", payload));
             command.Parameters.Add(command.CreateParameter("@Timestamp", envelope.Timestamp));
-            command.Parameters.Add(command.CreateParameter("@AggregateVersion", envelope.AggregateVersion));
-            command.Parameters.Add(command.CreateParameter("@EventSchemaVersion", envelope.EventSchemaVersion));
+            command.Parameters.Add(command.CreateParameter("@AggregateVersion", (int) envelope.AggregateVersion));
+            command.Parameters.Add(command.CreateParameter("@EventSchemaVersion", (int) envelope.EventSchemaVersion));
 
             int count = command.ExecuteNonQuery();
 
