@@ -2,6 +2,7 @@
 using OutboxSample.Application;
 using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
+using OutboxSample.Infrastructure.DataAccess;
 
 namespace OutboxSample.Infrastructure;
 
@@ -37,7 +38,7 @@ internal record UnitOfWork : IUnitOfWork
         return outbox;
     }
 
-    public bool Commit()
+    public async Task<bool> CommitAsync()
     {
         // in order to commit the _live_ transaction, the following prerequisite should hold:
         // the transaction proxy from ConnectionProxy.BeginTransaction either hasn't been requested
@@ -48,26 +49,26 @@ internal record UnitOfWork : IUnitOfWork
 
         if (shouldCommit)
         {
-            this.connectionProxy.TransactionProxy.LiveTransaction.Commit();
+            await this.connectionProxy.TransactionProxy.LiveTransaction.CommitAsync();
 
-            this.state = State.Comitted;
+            this.state = State.Committed;
 
             return true;
         }
 
-        this.Rollback();
+        await this.RollbackAsync();
 
         return false;
     }
 
-    public void Rollback()
+    public async Task RollbackAsync()
     {
-        this.connectionProxy.TransactionProxy.LiveTransaction.Rollback();
+        await this.connectionProxy.TransactionProxy.LiveTransaction.RollbackAsync();
 
         this.state = State.RolledBack;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (this.state == State.Disposed)
         {
@@ -76,12 +77,12 @@ internal record UnitOfWork : IUnitOfWork
 
         if (this.state == State.InProgress)
         {
-            this.Rollback();
+            await this.RollbackAsync();
         }
 
-        this.connectionProxy.TransactionProxy.LiveTransaction.Dispose();
-        this.connectionProxy.LiveConnection.Dispose();
-        this.dependencyResolver.Dispose();
+        await this.connectionProxy.TransactionProxy.LiveTransaction.DisposeAsync();
+        await this.connectionProxy.LiveConnection.DisposeAsync();
+        await this.dependencyResolver.DisposeAsync();
 
         this.state = State.Disposed;
     }
@@ -90,7 +91,7 @@ internal record UnitOfWork : IUnitOfWork
     {
         Undefined = 0,
         InProgress = 1,
-        Comitted = 2,
+        Committed = 2,
         RolledBack = 3,
         Disposed = 4,
     }

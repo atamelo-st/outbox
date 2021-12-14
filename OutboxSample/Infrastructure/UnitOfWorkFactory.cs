@@ -19,15 +19,15 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
         this.container = container;
     }
 
-    public IUnitOfWork Begin()
+    public async Task<IUnitOfWork> BeginAsync()
     {
         // 1. Get a live connection to share
         var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
         IDbConnection liveConnection = liveConnectionFactory.GetConnection();
 
         // 2. Start a transaction to share - i.e. to 'wrap' the unit of work
-        liveConnection.Open();
-        IDbTransaction liveTransaction = liveConnection.BeginTransaction();
+        await liveConnection.OpenAsync();
+        IDbTransaction liveTransaction = await liveConnection.BeginTransactionAsync();
 
         // 3. Wire up the connection/transaction sharing logic
         DbTransactionProxy transactionProxy = new (liveTransaction);
@@ -179,9 +179,13 @@ internal class DbConnectionProxy : IDbConnection
     }
 }
 
-internal class DbCommandProxy : IDbCommand
+internal interface IDbCommandProxy
 {
-    private readonly IDbCommand liveCommand;
+    IDbCommand LiveCommand { get; }
+}
+
+internal class DbCommandProxy : IDbCommand, IDbCommandProxy
+{
     private readonly DbConnectionProxy connectionProxy;
 
     private DbTransactionProxy transactionProxy;
@@ -193,45 +197,47 @@ internal class DbCommandProxy : IDbCommand
         ArgumentNullException.ThrowIfNull(connectionProxy, nameof(connectionProxy));
         ArgumentNullException.ThrowIfNull(transactionProxy, nameof(transactionProxy));
 
-        this.liveCommand = liveCommand;
+        this.LiveCommand = liveCommand;
         this.connectionProxy = connectionProxy;
         this.transactionProxy = transactionProxy;
     }
 
+    public IDbCommand LiveCommand { get; }
+
     [NotNull]
-    public string? CommandText { get => this.liveCommand.CommandText; set => this.liveCommand.CommandText = value; }
+    public string? CommandText { get => this.LiveCommand.CommandText; set => this.LiveCommand.CommandText = value; }
 
-    public int CommandTimeout { get => this.liveCommand.CommandTimeout; set => this.liveCommand.CommandTimeout = value; }
+    public int CommandTimeout { get => this.LiveCommand.CommandTimeout; set => this.LiveCommand.CommandTimeout = value; }
 
-    public CommandType CommandType { get => this.liveCommand.CommandType; set => this.liveCommand.CommandType = value; }
+    public CommandType CommandType { get => this.LiveCommand.CommandType; set => this.LiveCommand.CommandType = value; }
 
     // TODO: make the setter a no-op?
     public IDbConnection? Connection { get => this.connectionProxy; set => throw new NotSupportedException("Can't change connection."); }
 
-    public IDataParameterCollection Parameters => this.liveCommand.Parameters;
+    public IDataParameterCollection Parameters => this.LiveCommand.Parameters;
 
     // 1. The transaction has already been set upon the command creation
     // 2. The DbConnectionProxy.BeginTransaction is configured to always return the same transaction, which is the same as in #1
     // So, at it's pointless to override the transaction with the same value, command's transaction setter is just a no-op
     public IDbTransaction? Transaction { get => this.transactionProxy; set { } }
 
-    public UpdateRowSource UpdatedRowSource { get => this.liveCommand.UpdatedRowSource; set => this.liveCommand.UpdatedRowSource = value; }
+    public UpdateRowSource UpdatedRowSource { get => this.LiveCommand.UpdatedRowSource; set => this.LiveCommand.UpdatedRowSource = value; }
 
-    public void Cancel() => this.liveCommand.Cancel();
+    public void Cancel() => this.LiveCommand.Cancel();
 
-    public IDbDataParameter CreateParameter() => this.liveCommand.CreateParameter();
+    public IDbDataParameter CreateParameter() => this.LiveCommand.CreateParameter();
 
-    public void Dispose() => this.liveCommand.Dispose();
+    public void Dispose() => this.LiveCommand.Dispose();
 
-    public int ExecuteNonQuery() => this.liveCommand.ExecuteNonQuery();
+    public int ExecuteNonQuery() => this.LiveCommand.ExecuteNonQuery();
 
-    public IDataReader ExecuteReader() => this.liveCommand.ExecuteReader();
+    public IDataReader ExecuteReader() => this.LiveCommand.ExecuteReader();
 
-    public IDataReader ExecuteReader(CommandBehavior behavior) => this.liveCommand.ExecuteReader(behavior);
+    public IDataReader ExecuteReader(CommandBehavior behavior) => this.LiveCommand.ExecuteReader(behavior);
 
     public object? ExecuteScalar() => this.ExecuteScalar();
 
-    public void Prepare() => this.liveCommand.Prepare();
+    public void Prepare() => this.LiveCommand.Prepare();
 }
 
 internal class DbTransactionProxy : IDbTransaction

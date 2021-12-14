@@ -36,4 +36,80 @@ public static class IDbCommandExtensions
 
         return parameter;
     }
+
+    public static Task<int> ExecuteNonQueryAsync(this IDbCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command, nameof(command));
+
+        command = command.GetLiveCommand();
+
+        if (command is DbCommand dbCommand)
+        {
+            return dbCommand.ExecuteNonQueryAsync();
+        }
+
+        int count = command.ExecuteNonQuery();
+
+        return Task.FromResult(count);
+    }
+
+    public static async Task<IDataReader> ExecuteReaderAsync(this IDbCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command, nameof(command));
+
+        command = command.GetLiveCommand();
+
+        if (command is DbCommand dbCommand)
+        {
+            DbDataReader dbDataReader = await dbCommand.ExecuteReaderAsync();
+
+            return dbDataReader;
+        }
+
+        IDataReader dataReader = command.ExecuteReader();
+
+        return dataReader;
+    }
+
+    public static Task<object?> ExecuteScalarAsync(this IDbCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command, nameof(command));
+
+        command = command.GetLiveCommand();
+
+        if (command is DbCommand dbCommand)
+        {
+            return dbCommand.ExecuteScalarAsync();
+        }
+
+        object? result = command.ExecuteScalar();
+
+        return Task.FromResult(result);
+    }
+
+    public static Task PrepareAsync(this IDbCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command, nameof(command));
+
+        command = command.GetLiveCommand();
+
+        if (command is DbCommand dbCommand)
+        {
+            return dbCommand.PrepareAsync();
+        }
+
+        command.Prepare();
+
+        return Task.CompletedTask;
+    }
+
+    private static IDbCommand GetLiveCommand(this IDbCommand command)
+    {
+        if (command is IDbCommandProxy proxy)
+        {
+            return proxy.LiveCommand;
+        }
+
+        return command;
+    }
 }
