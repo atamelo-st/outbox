@@ -3,10 +3,10 @@ using OutboxSample.Application.Eventing;
 
 namespace OutboxSample.Application;
 
-public interface IUnitOfWork : IDisposable
+public interface IUnitOfWork : IAsyncDisposable
 {
-    bool Commit();
-    void Rollback();
+    Task<bool> CommitAsync();
+    Task RollbackAsync();
 
     TRepository GetRepository<TRepository>() where TRepository : IRepository, ISupportUnitOfWork;
 

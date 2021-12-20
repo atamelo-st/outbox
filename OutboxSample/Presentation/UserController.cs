@@ -34,9 +34,9 @@ public class UserController : ApplicationControllerBase
 
     [HttpGet]
     // TODO: return smth like GetUsersResponse.
-    public IActionResult Get()
+    public async Task<IActionResult> Get()
     {
-        QueryResult<IEnumerable<DataStore.Item<User>>> getAllQueryResult = userRepository.GetAll();
+        QueryResult<IEnumerable<DataStore.Item<User>>> getAllQueryResult = await userRepository.GetAllAsync();
 
         IActionResult actionResult = getAllQueryResult switch
         {
@@ -53,72 +53,68 @@ public class UserController : ApplicationControllerBase
     [HttpPost]
     // TODO: introduce AddUserCommand
     // TODO: separate presentation logic and application logic - introduce smth like User-Command-Query-Handler (might be UseService for starters..)
-    public IActionResult AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
+    public async Task<IActionResult> AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
     {
-        using (IUnitOfWork work = unitOfWork.Begin())
+        await using IUnitOfWork work = await unitOfWork.BeginAsync();
+        var repo = work.GetRepository<IUserRepository>();
+
+        User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
+
+        uint startingVersion = 0;
+        QueryResult<int> addQueryResult = await repo.AddAsync(newUser, createdAt: TimeProvider.UtcNow, startingVersion);
+
+        if (addQueryResult is Failure)
         {
-            var repo = work.GetRepository<IUserRepository>();
-
-            User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
-
-            uint startingVersion = 0;
-            QueryResult<int> addQueryResult = repo.Add(newUser, createdAt: TimeProvider.UtcNow, startingVersion);
-
-            if (addQueryResult is Failure)
+            return addQueryResult switch
             {
-                return addQueryResult switch
-                {
-                    QueryResult<int>.Failure.AlreadyExists failure => base.Conflict($"User with Id=[{newUser.Id}] already exists."),
+                QueryResult<int>.Failure.AlreadyExists failure => base.Conflict($"User with Id=[{newUser.Id}] already exists."),
 
-                    QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
+                QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
 
-                    _ => UnknownFailure(),
-                };
-            }
-
-            IOutbox outbox = work.GetOutbox();
-
-            var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
-
-            EventEnvelope envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
-
-            outbox.Send(envelope);
-
-            bool saved = work.Commit();
-
-            return Ok(saved ? "User added." : "Not added.");
+                _ => UnknownFailure(),
+            };
         }
+
+        IOutbox outbox = work.GetOutbox();
+
+        var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
+
+        EventEnvelope envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
+
+        await outbox.SendAsync(envelope);
+
+        bool saved = await work.CommitAsync();
+
+        return Ok(saved ? "User added." : "Not added.");
     }
 
 
     [HttpPost("v2")]
-    public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
+    public async Task<IActionResult> PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
     {
-        using (IUnitOfWork work = unitOfWork.Begin())
-        {
-            var repo = work.GetRepository<IUserRepository>();
+        await using IUnitOfWork work = await unitOfWork.BeginAsync();
+        var repo = work.GetRepository<IUserRepository>();
 
-            var users = new User[]
-            {
+        var users = new User[]
+        {
                 new(Guid.NewGuid(), DateTime.Now.ToString()),
                 new(Guid.NewGuid(), DateTime.Now.ToString())
-            };
+        };
 
-            QueryResult<int> queryResult = repo.AddMany(users, createdAt: TimeProvider.UtcNow, startingVersion: 0);
+        QueryResult<int> queryResult = await repo.AddManyAsync(users, createdAt: TimeProvider.UtcNow, startingVersion: 0);
 
-            if (queryResult is not Success<int> recordsSaved)
-            {
-                return Ok("Nothing added");
-            }
-
-            IOutbox outbox = work.GetOutbox();
-
-            // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
-
-            bool saved = work.Commit();
-
-            return Ok(saved ? $"{recordsSaved.Data} records saved." : "Not saved.");
+        if (queryResult is not Success<int> recordsSaved)
+        {
+            return Ok("Nothing added");
         }
+
+        IOutbox outbox = work.GetOutbox();
+
+        // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
+
+        bool saved = await work.CommitAsync();
+
+        return Ok(saved ? $"{recordsSaved.Data} records saved." : "Not saved.");
     }
 
     private IActionResult UnknownFailure() => base.StatusCode(500, "Something unexpected happened.");
