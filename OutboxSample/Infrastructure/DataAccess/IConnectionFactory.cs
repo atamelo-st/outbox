@@ -1,8 +1,8 @@
-﻿using System.Data;
+﻿using System.Data.Common;
 
 namespace OutboxSample.Infrastructure.DataAccess;
 
 public interface IConnectionFactory
 {
-    IDbConnection GetConnection(string? databaseName = null);
+    DbConnection GetConnection(string? databaseName = null);
 }

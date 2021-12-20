@@ -4,7 +4,7 @@ namespace OutboxSample.Application.Eventing;
 
 public interface IOutbox : ISupportUnitOfWork
 {
-    bool Send(EventEnvelope envelope);
+    Task<bool> SendAsync(EventEnvelope envelope);
 
-    bool Send(IReadOnlyList<EventEnvelope> envelopes);
+    Task<bool> SendAsync(IReadOnlyList<EventEnvelope> envelopes);
 }
