@@ -36,7 +36,7 @@ public class UserRepository : IUserRepository
             {
                 int count = command.ExecuteNonQuery();
 
-                // NOTE: returning empty metadata is metadata is not read from the db upon adding a user and nown upfront
+                // NOTE: returning empty metadata as metadata is not read from the db upon adding a user and is known upfront
                 return QueryResult.OfSuccess(count, DataStore.ItemMetadata.Empty);
             }
             catch (Exception)

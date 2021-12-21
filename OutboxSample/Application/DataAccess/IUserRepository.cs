@@ -11,6 +11,7 @@ namespace OutboxSample.Application.DataAccess
         QueryResult<User> Get(Guid id);
 
         // NOTE: initial version is 0 as we're creating a new object
+        // TODO: should we just return Void/Unit instead?
         QueryResult<int> Add(User user, DateTime createdAt, uint startingVersion = 0);
 
         QueryResult<int> AddMany(IEnumerable<User> users, DateTime createdAt, uint startingVersion = 0);

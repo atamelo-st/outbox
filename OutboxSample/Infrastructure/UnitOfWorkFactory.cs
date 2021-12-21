@@ -19,7 +19,7 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
         this.container = container;
     }
 
-    public IUnitOfWork Begin()
+    public IUnitOfWork Begin(string scopeTag = "Untagged")
     {
         // 1. Get a live connection to share
         var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
@@ -46,7 +46,7 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
         Debug.Assert(scopeContainer.Resolve<IConnectionFactory>().GetType() == typeof(SharedConnectionFactory));
 
-        UnitOfWork? unitOfWork = new (scopeContainer, connectionProxy);
+        UnitOfWork unitOfWork = new (scopeContainer, connectionProxy, scopeTag);
 
         return unitOfWork;
     }

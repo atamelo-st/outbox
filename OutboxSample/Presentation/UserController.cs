@@ -1,46 +1,53 @@
 using Microsoft.AspNetCore.Mvc;
 using OutboxSample.Application;
+using OutboxSample.Application.Commands;
 using OutboxSample.Application.DataAccess;
-using OutboxSample.Application.Eventing;
-using OutboxSample.Common;
+using OutboxSample.Application.Queries;
 using OutboxSample.DomainModel;
-using OutboxSample.DomainModel.Events;
 using static OutboxSample.Application.DataAccess.QueryResult;
 
 namespace OutboxSample.Presentation;
 
 [ApiController]
 [Route("[controller]")]
-public class UserController : ApplicationControllerBase
+public class UserController : Controller
 {
-    // TODO: remove; it's just a temporary stand-in
-    private static readonly Guid rootApplicationAggregateId = Guid.Parse("ef1e8203-209c-4c83-9284-2da9e17ddd6e");
-
-    private readonly IUserRepository userRepository;
     private readonly ILogger<UserController> logger;
 
-    public UserController(
-        IUserRepository userRepository,
-        IEventMetadataProvider eventMetadataProvider,
-        ITimeProvider timeProvider,
-        ILogger<UserController> logger) : base(eventMetadataProvider, timeProvider)
+    public UserController(IUserRepository userRepository, ILogger<UserController> logger)
     {
-        ArgumentNullException.ThrowIfNull(userRepository, nameof(userRepository));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
-        this.userRepository = userRepository;
         this.logger = logger;
     }
 
-    [HttpGet]
-    // TODO: return smth like GetUsersResponse.
-    public IActionResult Get()
+    [HttpGet("{userId}")]
+    // TODO: return smth like GetUserResponse!
+    public IActionResult Get(GetUserQuery query, [FromServices] IQueryHandler<GetUserQuery, QueryResult<User>> queryHandler)
     {
-        QueryResult<IEnumerable<DataStore.Item<User>>> getAllQueryResult = userRepository.GetAll();
+        QueryResult<User> queryResult = queryHandler.Handle(query);
 
-        IActionResult actionResult = getAllQueryResult switch
+        IActionResult actionResult = queryResult switch
         {
-            // TODO: convert data + matadata into a response
+            // TODO: convert data + matadata into a response!
+            Success<User> success => Ok(success.Data),
+
+            _ => UnknownFailure(),
+        };
+
+        return actionResult;
+    }
+
+
+    [HttpGet]
+    // TODO: return smth like GetUsersResponse!
+    public IActionResult GetAll([FromServices] IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>> queryHandler)
+    {
+        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = queryHandler.Handle(GetAllUsersQuery.Instance);
+
+        IActionResult actionResult = queryResult switch
+        {
+            // TODO: convert data + matadata into a response!
             Success<IEnumerable<DataStore.Item<User>>> success => Ok(success.Data),
 
             _ => UnknownFailure(),
@@ -51,75 +58,55 @@ public class UserController : ApplicationControllerBase
 
 
     [HttpPost]
-    // TODO: introduce AddUserCommand
-    // TODO: separate presentation logic and application logic - introduce smth like User-Command-Query-Handler (might be UseService for starters..)
-    public IActionResult AddUser([FromServices] IUnitOfWorkFactory unitOfWork)
+    public IActionResult AddUser(AddUserCommand command, [FromServices] ICommandHandler<AddUserCommand, AddUserCommandResult> commandHandler)
     {
-        using (IUnitOfWork work = unitOfWork.Begin())
+        AddUserCommandResult commandResult = commandHandler.Handle(command);
+
+        if (commandResult.QueryResult is Success)
         {
-            var repo = work.GetRepository<IUserRepository>();
-
-            User newUser = new(SequentialUuid.New(), DateTime.Now.ToString());
-
-            uint startingVersion = 0;
-            QueryResult<int> addQueryResult = repo.Add(newUser, createdAt: TimeProvider.UtcNow, startingVersion);
-
-            if (addQueryResult is Failure)
-            {
-                return addQueryResult switch
-                {
-                    QueryResult<int>.Failure.AlreadyExists failure => base.Conflict($"User with Id=[{newUser.Id}] already exists."),
-
-                    QueryResult<int>.Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
-
-                    _ => UnknownFailure(),
-                };
-            }
-
-            IOutbox outbox = work.GetOutbox();
-
-            var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
-
-            EventEnvelope envelope = WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
-
-            outbox.Send(envelope);
-
-            bool saved = work.Commit();
-
-            return Ok(saved ? "User added." : "Not added.");
+            return Ok($"User added. Version: {commandResult.Version}");
         }
+
+        return commandResult.QueryResult switch
+        {
+            Failure.AlreadyExists => base.Conflict($"User with Id=[{command.UserId}] already exists."),
+
+            Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
+
+            _ => UnknownFailure(),
+        };
     }
 
 
-    [HttpPost("v2")]
-    public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
-    {
-        using (IUnitOfWork work = unitOfWork.Begin())
-        {
-            var repo = work.GetRepository<IUserRepository>();
+    //[HttpPost("v2")]
+    //public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
+    //{
+    //    using (IUnitOfWork work = unitOfWork.Begin())
+    //    {
+    //        var repo = work.GetRepository<IUserRepository>();
 
-            var users = new User[]
-            {
-                new(Guid.NewGuid(), DateTime.Now.ToString()),
-                new(Guid.NewGuid(), DateTime.Now.ToString())
-            };
+    //        var users = new User[]
+    //        {
+    //            new(Guid.NewGuid(), DateTime.Now.ToString()),
+    //            new(Guid.NewGuid(), DateTime.Now.ToString())
+    //        };
 
-            QueryResult<int> queryResult = repo.AddMany(users, createdAt: TimeProvider.UtcNow, startingVersion: 0);
+    //        QueryResult<int> queryResult = repo.AddMany(users, createdAt: TimeProvider.UtcNow, startingVersion: 0);
 
-            if (queryResult is not Success<int> recordsSaved)
-            {
-                return Ok("Nothing added");
-            }
+    //        if (queryResult is not Success<int> recordsSaved)
+    //        {
+    //            return Ok("Nothing added");
+    //        }
 
-            IOutbox outbox = work.GetOutbox();
+    //        IOutbox outbox = work.GetOutbox();
 
-            // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
+    //        // outbox.SendMany(users.Select(user => new UserAddedEvent(user.Id, user.Name)).ToArray());
 
-            bool saved = work.Commit();
+    //        bool saved = work.Commit();
 
-            return Ok(saved ? $"{recordsSaved.Data} records saved." : "Not saved.");
-        }
-    }
+    //        return Ok(saved ? $"{recordsSaved.Data} records saved." : "Not saved.");
+    //    }
+    //}
 
     private IActionResult UnknownFailure() => base.StatusCode(500, "Something unexpected happened.");
 }

@@ -8,11 +8,20 @@ public abstract record QueryResult
 {
     public static Success<TData> OfSuccess<TData>(TData data, DataStore.ItemMetadata metadata) => new(data, metadata);
 
+    public static Success<Common.Void> OfSuccess() => new(Common.Void.Instance, DataStore.ItemMetadata.Empty);
+
     public sealed record Success<TData>(TData Data, DataStore.ItemMetadata Metadata) : QueryResult<TData>, Success;
 
     public interface Success { }
 
-    public interface Failure { }
+    public interface Failure
+    {
+        string Message { get; }
+
+        public interface AlreadyExists : Failure { }
+        public interface NotFound : Failure { }
+        public interface ConcurrencyConflict : Failure { }
+    }
 }
 
 public abstract record QueryResult<TExpectedData> : QueryResult
@@ -28,14 +37,16 @@ public abstract record QueryResult<TExpectedData> : QueryResult
 
     new public abstract record Failure(Failure.Description WhatHappened) : QueryResult<TExpectedData>, QueryResult.Failure
     {
-        public sealed record AlreadyExists(string Message) : Failure(Message, ErrorCode.AlreadyExists);
+        public sealed record AlreadyExists(string Message) : Failure(Message, ErrorCode.AlreadyExists), QueryResult.Failure.AlreadyExists;
 
-        public sealed record NotFound(string Message) : Failure(Message, ErrorCode.NotFound);
+        public sealed record NotFound(string Message) : Failure(Message, ErrorCode.NotFound), QueryResult.Failure.NotFound;
 
-        public sealed record ConcurrencyConflict(string Message) : Failure(Message, ErrorCode.ConcurrencyConflict);
+        public sealed record ConcurrencyConflict(string Message) : Failure(Message, ErrorCode.ConcurrencyConflict), QueryResult.Failure.ConcurrencyConflict;
 
         protected Failure(string message, ErrorCode errorCode) : this(new Description(message, errorCode))
         { }
+
+        public string Message => this.WhatHappened.Text;
 
         public readonly record struct Description(string Text, ErrorCode ErrorCode);
 

@@ -2,9 +2,13 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Npgsql;
 using OutboxSample.Application;
+using OutboxSample.Application.Commands;
 using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
+using OutboxSample.Application.Queries;
+using OutboxSample.Application.QueryHandlers;
 using OutboxSample.Common;
+using OutboxSample.DomainModel;
 using OutboxSample.Infrastructure;
 using OutboxSample.Infrastructure.DataAccess;
 using OutboxSample.Infrastructure.Eventing;
@@ -40,5 +44,9 @@ public class Program
 
         containerBuilder.RegisterType<Outbox>().As<IOutbox>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserRepository>().As<IUserRepository>().InstancePerLifetimeScope();
+
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetUserQuery, QueryResult<User>>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<AddUserCommand, AddUserCommandResult>>().InstancePerLifetimeScope();
     }
 }

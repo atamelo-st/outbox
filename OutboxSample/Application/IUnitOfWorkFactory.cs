@@ -2,5 +2,5 @@
 
 public interface IUnitOfWorkFactory
 {
-    IUnitOfWork Begin();
+    IUnitOfWork Begin(string scopeToken);
 }
