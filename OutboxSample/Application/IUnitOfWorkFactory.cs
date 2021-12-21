@@ -2,5 +2,5 @@
 
 public interface IUnitOfWorkFactory
 {
-    IUnitOfWork Begin(string scopeToken);
+    Task<IUnitOfWork> BeginAsync(string scopeToken);
 }

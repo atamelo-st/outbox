@@ -14,7 +14,7 @@ public class UserController : Controller
 {
     private readonly ILogger<UserController> logger;
 
-    public UserController(IUserRepository userRepository, ILogger<UserController> logger)
+    public UserController(ILogger<UserController> logger)
     {
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
@@ -23,9 +23,9 @@ public class UserController : Controller
 
     [HttpGet("{userId}")]
     // TODO: return smth like GetUserResponse!
-    public IActionResult Get(GetUserQuery query, [FromServices] IQueryHandler<GetUserQuery, QueryResult<User>> queryHandler)
+    public async Task<IActionResult> Get(GetUserQuery query, [FromServices] IQueryHandler<GetUserQuery, QueryResult<User>> queryHandler)
     {
-        QueryResult<User> queryResult = queryHandler.Handle(query);
+        QueryResult<User> queryResult = await queryHandler.HandleAsync(query);
 
         IActionResult actionResult = queryResult switch
         {
@@ -41,9 +41,9 @@ public class UserController : Controller
 
     [HttpGet]
     // TODO: return smth like GetUsersResponse!
-    public IActionResult GetAll([FromServices] IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>> queryHandler)
+    public async Task<IActionResult> GetAll([FromServices] IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>> queryHandler)
     {
-        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = queryHandler.Handle(GetAllUsersQuery.Instance);
+        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await queryHandler.HandleAsync(GetAllUsersQuery.Instance);
 
         IActionResult actionResult = queryResult switch
         {
@@ -58,9 +58,9 @@ public class UserController : Controller
 
 
     [HttpPost]
-    public IActionResult AddUser(AddUserCommand command, [FromServices] ICommandHandler<AddUserCommand, AddUserCommandResult> commandHandler)
+    public async Task<IActionResult> AddUser(AddUserCommand command, [FromServices] ICommandHandler<AddUserCommand, AddUserCommandResult> commandHandler)
     {
-        AddUserCommandResult commandResult = commandHandler.Handle(command);
+        AddUserCommandResult commandResult = await commandHandler.HandleAsync(command);
 
         if (commandResult.QueryResult is Success)
         {

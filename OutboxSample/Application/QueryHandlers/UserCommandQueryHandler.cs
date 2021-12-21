@@ -39,36 +39,36 @@ public class UserCommandQueryHandler :
         this.eventMetadataProvider = eventMetadataProvider;
     }
 
-    public QueryResult<User> Handle(GetUserQuery query)
+    public async Task<QueryResult<User>> HandleAsync(GetUserQuery query)
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
 
-        QueryResult<User> queryResult = this.userRepository.Get(query.userId);
+        QueryResult<User> queryResult = await this.userRepository.GetAsync(query.userId);
 
         return queryResult;
     }
 
-    public QueryResult<IEnumerable<DataStore.Item<User>>> Handle(GetAllUsersQuery query)
+    public async Task<QueryResult<IEnumerable<DataStore.Item<User>>>> HandleAsync(GetAllUsersQuery query)
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
 
-        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = this.userRepository.GetAll();
+        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await this.userRepository.GetAllAsync();
 
         return queryResult;
     }
 
-    public AddUserCommandResult Handle(AddUserCommand command)
+    public async Task<AddUserCommandResult> HandleAsync(AddUserCommand command)
     {
         ArgumentNullException.ThrowIfNull(command, nameof(command));
 
-        using (IUnitOfWork work = this.unitOfWork.Begin("add-user"))
+        await using (IUnitOfWork work = await this.unitOfWork.BeginAsync("add-user"))
         {
             var repo = work.GetRepository<IUserRepository>();
 
             User newUser = new(command.UserId, command.UserName);
 
             uint startingVersion = 0;
-            QueryResult addUserResult = repo.Add(newUser, createdAt: this.timeProvider.UtcNow, startingVersion);
+            QueryResult addUserResult = await repo.AddAsync(newUser, createdAt: this.timeProvider.UtcNow, startingVersion);
 
             if (addUserResult is QueryResult.Success)
             {
@@ -78,9 +78,9 @@ public class UserCommandQueryHandler :
 
                 EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
 
-                outbox.Send(envelope);
+                await outbox.SendAsync(envelope);
 
-                work.Commit();
+                await work.CommitAsync();
             }
 
             return new AddUserCommandResult(addUserResult, startingVersion);
