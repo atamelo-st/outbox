@@ -77,9 +77,7 @@ public class UserCommandQueryHandler :
 
                 var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
-                EventEnvelope envelope = this.WrapEvent(userAddedEvent, rootApplicationAggregateId, aggregateVersion: startingVersion);
-
-                await outbox.SendAsync(envelope);
+                await this.SendEventAsync(outbox, userAddedEvent, aggregateVersion: startingVersion);
 
                 await work.CommitAsync();
             }
@@ -104,17 +102,26 @@ public class UserCommandQueryHandler :
             {
                 IOutbox outbox = work.GetOutbox();
 
-                var userNameChangedEvent = new UserNameChangedEvent(SequentialUuid.New(), userWithNewName.Id, userWithNewName.Name);
+                UserNameChangedEvent userNameChangedEvent = new(SequentialUuid.New(), userWithNewName.Id, userWithNewName.Name);
 
-                EventEnvelope envelope = this.WrapEvent(userNameChangedEvent, rootApplicationAggregateId, aggregateVersion: success.Metadata.Version);
-
-                await outbox.SendAsync(envelope);
+                await this.SendEventAsync(outbox, userNameChangedEvent, aggregateVersion: success.Metadata.Version);
 
                 await work.CommitAsync();
             }
 
             return new ChangeUserNameCommandResult(changeUserNameResult);
         }
+    }
+
+    private async Task SendEventAsync<TEvent>(
+        IOutbox outbox,
+        TEvent @event,
+        uint aggregateVersion
+    ) where TEvent : IEvent
+    {
+        EventEnvelope envelope = this.WrapEvent(@event, rootApplicationAggregateId, aggregateVersion);
+
+        await outbox.SendAsync(envelope);
     }
 
     private EventEnvelope WrapEvent<TEvent>(
