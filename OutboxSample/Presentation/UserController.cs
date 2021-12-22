@@ -32,7 +32,7 @@ public class UserController : Controller
             // TODO: convert data + matadata into a response!
             Success<User> success => Ok(success.Data),
 
-            Failure f => this.UnexpectedFailure(f.ToString()),
+            Failure f => this.UnexpectedFailure(f),
 
             _ => throw UnexpectedResultType(),
         };
@@ -52,7 +52,7 @@ public class UserController : Controller
             // TODO: convert data + matadata into a response!
             Success<IEnumerable<DataStore.Item<User>>> success => Ok(success.Data),
 
-            Failure f => this.UnexpectedFailure(f.ToString()),
+            Failure f => this.UnexpectedFailure(f),
 
             _ => throw UnexpectedResultType(),
         };
@@ -72,7 +72,7 @@ public class UserController : Controller
 
             Failure.AlreadyExists => base.Conflict($"User with Id=[{command.UserId}] already exists."),
 
-            Failure f => this.UnexpectedFailure(f.ToString()),
+            Failure f => this.UnexpectedFailure(f),
 
             _ => throw UnexpectedResultType(),
         };
@@ -89,7 +89,7 @@ public class UserController : Controller
 
             Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
 
-            Failure f => this.UnexpectedFailure(f.ToString()),
+            Failure f => this.UnexpectedFailure(f),
 
             _ => throw UnexpectedResultType(),
         };
@@ -125,7 +125,7 @@ public class UserController : Controller
     //    }
     //}
 
-    private IActionResult UnexpectedFailure(string? message) => base.StatusCode(400, $"Failure: {message}.");
+    private IActionResult UnexpectedFailure(Failure failure) => base.StatusCode(400, $"Failure: {failure}.");
 
     private static Exception UnexpectedResultType() => new InvalidOperationException("Should never happen.");
 }
