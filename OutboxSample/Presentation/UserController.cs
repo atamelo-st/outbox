@@ -32,7 +32,9 @@ public class UserController : Controller
             // TODO: convert data + matadata into a response!
             Success<User> success => Ok(success.Data),
 
-            _ => UnknownFailure(),
+            Failure f => this.UnexpectedFailure(f.ToString()),
+
+            _ => throw UnexpectedResultType(),
         };
 
         return actionResult;
@@ -50,7 +52,9 @@ public class UserController : Controller
             // TODO: convert data + matadata into a response!
             Success<IEnumerable<DataStore.Item<User>>> success => Ok(success.Data),
 
-            _ => UnknownFailure(),
+            Failure f => this.UnexpectedFailure(f.ToString()),
+
+            _ => throw UnexpectedResultType(),
         };
 
         return actionResult;
@@ -62,21 +66,34 @@ public class UserController : Controller
     {
         AddUserCommandResult commandResult = await commandHandler.HandleAsync(command);
 
-        if (commandResult.QueryResult is Success)
+        return commandResult.DbQueryResult switch
         {
-            return Ok($"User added. Version: {commandResult.Version}");
-        }
+            Success => base.Ok($"User added. Version: {commandResult.Version}"),
 
-        return commandResult.QueryResult switch
-        {
             Failure.AlreadyExists => base.Conflict($"User with Id=[{command.UserId}] already exists."),
 
-            Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
+            Failure f => this.UnexpectedFailure(f.ToString()),
 
-            _ => UnknownFailure(),
+            _ => throw UnexpectedResultType(),
         };
     }
 
+    [HttpPut]
+    public async Task<IActionResult> ChangeUser(ChangeUserNameCommand command, [FromServices] ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult> commandHandler)
+    {
+        ChangeUserNameCommandResult commandResult = await commandHandler.HandleAsync(command);
+
+        return commandResult.DbQueryResult switch
+        {
+            Success success => base.Ok($"User name changed. New version: {success.Metadata.Version}"),
+
+            Failure.ConcurrencyConflict failure => base.Conflict(failure.Message),
+
+            Failure f => this.UnexpectedFailure(f.ToString()),
+
+            _ => throw UnexpectedResultType(),
+        };
+    }
 
     //[HttpPost("v2")]
     //public IActionResult PostV2([FromServices] IUnitOfWorkFactory unitOfWork)
@@ -108,5 +125,7 @@ public class UserController : Controller
     //    }
     //}
 
-    private IActionResult UnknownFailure() => base.StatusCode(500, "Something unexpected happened.");
+    private IActionResult UnexpectedFailure(string? message) => base.StatusCode(400, $"Failure: {message}.");
+
+    private static Exception UnexpectedResultType() => new InvalidOperationException("Should never happen.");
 }

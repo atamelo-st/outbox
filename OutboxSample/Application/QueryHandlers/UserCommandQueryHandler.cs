@@ -11,7 +11,8 @@ namespace OutboxSample.Application.QueryHandlers;
 public class UserCommandQueryHandler :
     IQueryHandler<GetUserQuery, QueryResult<User>>,
     IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>,
-    ICommandHandler<AddUserCommand, AddUserCommandResult>
+    ICommandHandler<AddUserCommand, AddUserCommandResult>,
+    ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>
 {
     private readonly IUserRepository userRepository;
     private readonly IUnitOfWorkFactory unitOfWork;
@@ -84,6 +85,35 @@ public class UserCommandQueryHandler :
             }
 
             return new AddUserCommandResult(addUserResult, startingVersion);
+        }
+    }
+
+    public async Task<ChangeUserNameCommandResult> HandleAsync(ChangeUserNameCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command, nameof(command));
+
+        await using (IUnitOfWork work = await this.unitOfWork.BeginAsync("change-user-name"))
+        {
+            var repo = work.GetRepository<IUserRepository>();
+
+            User userWithNewName = new(command.userId, command.newName);
+
+            QueryResult changeUserNameResult = await repo.ChangeUserName(userWithNewName, updatedAt: this.timeProvider.UtcNow, command.expectedVersion);
+
+            if (changeUserNameResult is QueryResult.Success success)
+            {
+                IOutbox outbox = work.GetOutbox();
+
+                var userNameChangedEvent = new UserNameChangedEvent(SequentialUuid.New(), userWithNewName.Id, userWithNewName.Name);
+
+                EventEnvelope envelope = this.WrapEvent(userNameChangedEvent, rootApplicationAggregateId, aggregateVersion: success.Metadata.Version);
+
+                await outbox.SendAsync(envelope);
+
+                await work.CommitAsync();
+            }
+
+            return new ChangeUserNameCommandResult(changeUserNameResult);
         }
     }
 

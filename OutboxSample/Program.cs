@@ -48,5 +48,6 @@ public class Program
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetUserQuery, QueryResult<User>>>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<AddUserCommand, AddUserCommandResult>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>().InstancePerLifetimeScope();
     }
 }

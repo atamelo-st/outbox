@@ -1,7 +1,7 @@
 ﻿namespace OutboxSample.DomainModel.Events;
 
 [EventMetadata("user-added", "application-aggregate", 0)]
-public record UserAddedEvent : IEvent
+public sealed record UserAddedEvent : IEvent
 {
     public Guid UserId { get; }
     public string UserName { get; }

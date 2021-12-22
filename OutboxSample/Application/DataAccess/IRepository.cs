@@ -8,11 +8,16 @@ public abstract record QueryResult
 {
     public static Success<TData> OfSuccess<TData>(TData data, DataStore.ItemMetadata metadata) => new(data, metadata);
 
-    public static Success<Common.Void> OfSuccess() => new(Common.Void.Instance, DataStore.ItemMetadata.Empty);
+    public static Success<Common.Void> OfSuccess(DataStore.ItemMetadata metadata) => new(Common.Void.Instance, metadata);
+
+    public static Success<Common.Void> OfSuccess() => OfSuccess(DataStore.ItemMetadata.Empty);
 
     public sealed record Success<TData>(TData Data, DataStore.ItemMetadata Metadata) : QueryResult<TData>, Success;
 
-    public interface Success { }
+    public interface Success
+    { 
+        DataStore.ItemMetadata Metadata { get; }
+    }
 
     public interface Failure
     {
@@ -65,14 +70,33 @@ public static class DataStore
 {
     public readonly record struct Item<TData>(TData Data, ItemMetadata Metadata);
 
-    public readonly record struct ItemMetadata(DateTime CreateAt, DateTime UpatedAt, uint Version)
+    public readonly record struct ItemMetadata
     {
+        private readonly uint version;
+        private readonly DateTime createdAt;
+        private readonly DateTime updatedAt;
+
         private readonly bool isEmpty = false;
 
         public static readonly ItemMetadata Empty = new();
 
         public bool IsEmpty => this.isEmpty;
 
-        public ItemMetadata() : this(default, default, default) => this.isEmpty = true;
+        public uint Version => this.IsEmpty ? throw EmptyMetadata() : this.version;
+
+        public DateTime CreatedAt => this.IsEmpty ? throw EmptyMetadata() : this.createdAt;
+
+        public DateTime UpdatedAt => this.IsEmpty ? throw EmptyMetadata() : this.updatedAt;
+
+        public ItemMetadata() : this(default) => this.isEmpty = true;
+
+        public ItemMetadata(uint version, DateTime updatedAt = default, DateTime createdAt = default)
+        {
+            this.version = version;
+            this.updatedAt = updatedAt;
+            this.createdAt = createdAt;
+        }
+
+        private static Exception EmptyMetadata() => new InvalidOperationException("Can't read empty metadata.");
     }
 }

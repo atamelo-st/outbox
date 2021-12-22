@@ -18,6 +18,7 @@ namespace OutboxSample.Application.DataAccess
 
         Task<QueryResult<bool>> DeleteAsync(Guid id);
 
-        // TODO: add 'update' API
+        // NOTE: this could be smth like 'ChangeUserData(..)' method acception a list of needed changes
+        Task<QueryResult> ChangeUserName(User userWithNewName, DateTime updatedAt, uint expectedVersion);
     }
 }

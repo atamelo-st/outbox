@@ -45,7 +45,7 @@ public class UserRepository : IUserRepository
             DateTime createdAt = dataReader.GetDateTime(dataReader.GetOrdinal("created_at"));
             DateTime updatedAt = dataReader.GetDateTime(dataReader.GetOrdinal("updated_at"));
             uint version = (uint)dataReader.GetInt32(dataReader.GetOrdinal("version"));
-            DataStore.ItemMetadata metadata = new(createdAt, updatedAt, version);
+            DataStore.ItemMetadata metadata = new(version, updatedAt, createdAt);
 
             queryResult.Add(new(user, metadata));
         }
@@ -130,5 +130,40 @@ public class UserRepository : IUserRepository
     public Task<QueryResult<bool>> DeleteAsync(Guid id)
     {
         return Task.FromResult<QueryResult<bool>>(QueryResult<bool>.OfFailure.NotFound()); // :) just a stub
+    }
+
+    public async Task<QueryResult> ChangeUserName(User userWithNewName, DateTime updatedAt, uint expectedVersion)
+    {
+        await using DbConnection connection = this.connectionFactory.GetConnection();
+        await using DbCommand command = connection.CreateCommand();
+
+        // TODO: return the old name in the same query ? Not sure we really need it, though..
+        // E.g. smth like (https://stackoverflow.com/a/7927957/349658):
+        // UPDATE tbl x SET tbl_id = 24, name = 'New Gal'
+        // FROM (SELECT tbl_id, name FROM tbl WHERE tbl_id = 4 FOR UPDATE) y
+        // WHERE x.tbl_id = y.tbl_id
+        // RETURNING y.tbl_id AS old_id, y.name AS old_name, x.tbl_i, x.name;
+        command.CommandText = "UPDATE users SET name=@NewName, updated_at=@UpdatedAt, version=version+1 WHERE id=@Id AND version=@ExpectedVersion";
+        command.CommandType = CommandType.Text;
+        command.Parameters.Add(command.CreateParameter("@Id", userWithNewName.Id));
+        command.Parameters.Add(command.CreateParameter("@NewName", userWithNewName.Name));
+        command.Parameters.Add(command.CreateParameter("@UpdatedAt", updatedAt));
+        command.Parameters.Add(command.CreateParameter("@ExpectedVersion", (int)expectedVersion));
+
+        await connection.OpenAsync();
+
+        bool versionMismatch = await command.ExecuteNonQueryAsync() == 0;
+
+        if (versionMismatch)
+        {
+            return QueryResult<Common.Void>.OfFailure.ConcurrencyConflict();
+        }
+
+        // NOTE: if we got here, the UPDATE has completed with the expectedVersion matching the actual one.
+        // So, we know that the next version is going to be expectedVersion + 1 (see the UPDATE statement)
+        uint newVersion = expectedVersion + 1;
+        DataStore.ItemMetadata metadata = new(newVersion, updatedAt);
+
+        return QueryResult.OfSuccess(metadata);
     }
 }
