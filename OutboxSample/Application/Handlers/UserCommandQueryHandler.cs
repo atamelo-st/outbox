@@ -6,7 +6,7 @@ using OutboxSample.Common;
 using OutboxSample.DomainModel;
 using OutboxSample.DomainModel.Events;
 
-namespace OutboxSample.Application.QueryHandlers;
+namespace OutboxSample.Application.Handlers;
 
 public class UserCommandQueryHandler :
     IQueryHandler<GetUserQuery, QueryResult<User>>,
@@ -44,7 +44,7 @@ public class UserCommandQueryHandler :
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
 
-        QueryResult<User> queryResult = await this.userRepository.GetAsync(query.userId);
+        QueryResult<User> queryResult = await userRepository.GetAsync(query.userId);
 
         return queryResult;
     }
@@ -53,7 +53,7 @@ public class UserCommandQueryHandler :
     {
         ArgumentNullException.ThrowIfNull(query, nameof(query));
 
-        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await this.userRepository.GetAllAsync();
+        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await userRepository.GetAllAsync();
 
         return queryResult;
     }
@@ -62,14 +62,14 @@ public class UserCommandQueryHandler :
     {
         ArgumentNullException.ThrowIfNull(command, nameof(command));
 
-        await using (IUnitOfWork work = await this.unitOfWork.BeginAsync("add-user"))
+        await using (IUnitOfWork work = await unitOfWork.BeginAsync("add-user"))
         {
             var repo = work.GetRepository<IUserRepository>();
 
             User newUser = new(command.UserId, command.UserName);
 
             uint startingVersion = 0;
-            QueryResult addUserResult = await repo.AddAsync(newUser, createdAt: this.timeProvider.UtcNow, startingVersion);
+            QueryResult addUserResult = await repo.AddAsync(newUser, createdAt: timeProvider.UtcNow, startingVersion);
 
             if (addUserResult is QueryResult.Success)
             {
@@ -77,7 +77,7 @@ public class UserCommandQueryHandler :
 
                 var userAddedEvent = new UserAddedEvent(SequentialUuid.New(), newUser.Id, newUser.Name);
 
-                await this.SendEventAsync(outbox, userAddedEvent, aggregateVersion: startingVersion);
+                await SendEventAsync(outbox, userAddedEvent, aggregateVersion: startingVersion);
 
                 await work.CommitAsync();
             }
@@ -90,13 +90,13 @@ public class UserCommandQueryHandler :
     {
         ArgumentNullException.ThrowIfNull(command, nameof(command));
 
-        await using (IUnitOfWork work = await this.unitOfWork.BeginAsync("change-user-name"))
+        await using (IUnitOfWork work = await unitOfWork.BeginAsync("change-user-name"))
         {
             var repo = work.GetRepository<IUserRepository>();
 
             User userWithNewName = new(command.userId, command.newName);
 
-            QueryResult changeUserNameResult = await repo.ChangeUserName(userWithNewName, updatedAt: this.timeProvider.UtcNow, command.expectedVersion);
+            QueryResult changeUserNameResult = await repo.ChangeUserName(userWithNewName, updatedAt: timeProvider.UtcNow, command.expectedVersion);
 
             if (changeUserNameResult is QueryResult.Success success)
             {
@@ -104,7 +104,7 @@ public class UserCommandQueryHandler :
 
                 UserNameChangedEvent userNameChangedEvent = new(SequentialUuid.New(), userWithNewName.Id, userWithNewName.Name);
 
-                await this.SendEventAsync(outbox, userNameChangedEvent, aggregateVersion: success.Metadata.Version);
+                await SendEventAsync(outbox, userNameChangedEvent, aggregateVersion: success.Metadata.Version);
 
                 await work.CommitAsync();
             }
@@ -119,7 +119,7 @@ public class UserCommandQueryHandler :
         uint aggregateVersion
     ) where TEvent : IEvent
     {
-        EventEnvelope envelope = this.WrapEvent(@event, rootApplicationAggregateId, aggregateVersion);
+        EventEnvelope envelope = WrapEvent(@event, rootApplicationAggregateId, aggregateVersion);
 
         await outbox.SendAsync(envelope);
     }
@@ -130,9 +130,9 @@ public class UserCommandQueryHandler :
         uint aggregateVersion
     ) where TEvent : IEvent
     {
-        EventMetadata eventMetadata = this.eventMetadataProvider.GetMetadataFor(@event);
+        EventMetadata eventMetadata = eventMetadataProvider.GetMetadataFor(@event);
 
-        DateTime timestamp = this.timeProvider.UtcNow;
+        DateTime timestamp = timeProvider.UtcNow;
 
         return new EventEnvelope(
             // NOTE: if TEvent is a struct, this is where boxing will happen

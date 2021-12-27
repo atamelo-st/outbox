@@ -23,9 +23,9 @@ public class UserController : Controller
 
     [HttpGet("{userId}")]
     // TODO: return smth like GetUserResponse!
-    public async Task<IActionResult> Get(GetUserQuery query, [FromServices] IQueryHandler<GetUserQuery, QueryResult<User>> queryHandler)
+    public async Task<IActionResult> Get(GetUserQuery query, [FromServices] QueryHandler<GetUserQuery, QueryResult<User>> getUser)
     {
-        QueryResult<User> queryResult = await queryHandler.HandleAsync(query);
+        QueryResult<User> queryResult = await getUser(query);
 
         IActionResult actionResult = queryResult switch
         {
@@ -43,9 +43,9 @@ public class UserController : Controller
 
     [HttpGet]
     // TODO: return smth like GetUsersResponse!
-    public async Task<IActionResult> GetAll([FromServices] IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>> queryHandler)
+    public async Task<IActionResult> GetAll([FromServices] QueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>> getUsers)
     {
-        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await queryHandler.HandleAsync(GetAllUsersQuery.Instance);
+        QueryResult<IEnumerable<DataStore.Item<User>>> queryResult = await getUsers(GetAllUsersQuery.Instance);
 
         IActionResult actionResult = queryResult switch
         {
@@ -62,9 +62,9 @@ public class UserController : Controller
 
 
     [HttpPost]
-    public async Task<IActionResult> AddUser(AddUserCommand command, [FromServices] ICommandHandler<AddUserCommand, AddUserCommandResult> commandHandler)
+    public async Task<IActionResult> AddUser(AddUserCommand command, [FromServices] CommandHandler<AddUserCommand, AddUserCommandResult> addUser)
     {
-        AddUserCommandResult commandResult = await commandHandler.HandleAsync(command);
+        AddUserCommandResult commandResult = await addUser(command);
 
         return commandResult.DbQueryResult switch
         {
@@ -79,9 +79,9 @@ public class UserController : Controller
     }
 
     [HttpPut]
-    public async Task<IActionResult> ChangeUser(ChangeUserNameCommand command, [FromServices] ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult> commandHandler)
+    public async Task<IActionResult> ChangeUser(ChangeUserNameCommand command, [FromServices] CommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult> changeUser)
     {
-        ChangeUserNameCommandResult commandResult = await commandHandler.HandleAsync(command);
+        ChangeUserNameCommandResult commandResult = await changeUser(command);
 
         return commandResult.DbQueryResult switch
         {

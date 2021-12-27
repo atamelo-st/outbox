@@ -5,8 +5,8 @@ using OutboxSample.Application;
 using OutboxSample.Application.Commands;
 using OutboxSample.Application.DataAccess;
 using OutboxSample.Application.Eventing;
+using OutboxSample.Application.Handlers;
 using OutboxSample.Application.Queries;
-using OutboxSample.Application.QueryHandlers;
 using OutboxSample.Common;
 using OutboxSample.DomainModel;
 using OutboxSample.Infrastructure;
@@ -49,5 +49,21 @@ public class Program
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<AddUserCommand, AddUserCommandResult>>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>().InstancePerLifetimeScope();
+
+        containerBuilder.Register<QueryHandler<GetUserQuery, QueryResult<User>>>(
+            context => context.Resolve<IQueryHandler<GetUserQuery, QueryResult<User>>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<QueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>(
+            context => context.Resolve<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<CommandHandler<AddUserCommand, AddUserCommandResult>>(
+            context => context.Resolve<ICommandHandler<AddUserCommand, AddUserCommandResult>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<CommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>(
+            context => context.Resolve<ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>().HandleAsync
+        ).InstancePerLifetimeScope();
     }
 }
