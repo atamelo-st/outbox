@@ -16,6 +16,7 @@ namespace DaprListener.Controllers
         }
         
         [HttpPost("/user-added")]
+        // TODO: test if/how Kafka headers are propagated
         public async Task<IActionResult> Notify(JsonElement userEventJson)
         {
             // TODO: move it to a separate model binder or find out if there is a way to configure it

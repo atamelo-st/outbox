@@ -1,11 +1,14 @@
-﻿using Autofac;
-using OutboxSample.Application;
-using System.Data;
+﻿using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace OutboxSample.Infrastructure;
+using Autofac;
 
+using OutboxSample.Application;
+using OutboxSample.Infrastructure.DataAccess;
+
+namespace OutboxSample.Infrastructure;
 
 public class UnitOfWorkFactory : IUnitOfWorkFactory
 {
@@ -13,18 +16,20 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
     public UnitOfWorkFactory(ILifetimeScope container)
     {
+        ArgumentNullException.ThrowIfNull(container, nameof(container));
+
         this.container = container;
     }
 
-    public IUnitOfWork Begin()
+    public async Task<IUnitOfWork> BeginAsync(string scopeTag = "Untagged")
     {
         // 1. Get a live connection to share
         var liveConnectionFactory = this.container.Resolve<IConnectionFactory>();
-        IDbConnection liveConnection = liveConnectionFactory.GetConnection();
+        DbConnection liveConnection = liveConnectionFactory.GetConnection();
 
         // 2. Start a transaction to share - i.e. to 'wrap' the unit of work
-        liveConnection.Open();
-        IDbTransaction liveTransaction = liveConnection.BeginTransaction();
+        await liveConnection.OpenAsync();
+        DbTransaction liveTransaction = await liveConnection.BeginTransactionAsync();
 
         // 3. Wire up the connection/transaction sharing logic
         DbTransactionProxy transactionProxy = new (liveTransaction);
@@ -43,7 +48,7 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
 
         Debug.Assert(scopeContainer.Resolve<IConnectionFactory>().GetType() == typeof(SharedConnectionFactory));
 
-        UnitOfWork? unitOfWork = new (scopeContainer, connectionProxy);
+        UnitOfWork unitOfWork = new (scopeContainer, connectionProxy, scopeTag);
 
         return unitOfWork;
     }
@@ -59,21 +64,21 @@ public class UnitOfWorkFactory : IUnitOfWorkFactory
             this.sharedConnection = sharedConnection;
         }
 
-        public IDbConnection GetConnection(string? databaseName = null) => this.sharedConnection;
+        public DbConnection GetConnection(string? databaseName = null) => this.sharedConnection;
     }
 }
 
-internal class DbConnectionProxy : IDbConnection
+internal class DbConnectionProxy : DbConnection
 {
-    private bool hasConnectionHasBeenRequestedToOpen;
+    private bool connectionHasBeenRequestedToOpen;
 
-    public IDbConnection LiveConnection { get; }
+    public DbConnection LiveConnection { get; }
 
     public DbTransactionProxy TransactionProxy { get; }
 
     public bool HasTransactionBeenExplicitlyRequested { get; private set; }
 
-    public DbConnectionProxy(IDbConnection liveConnection, DbTransactionProxy transactionProxy)
+    public DbConnectionProxy(DbConnection liveConnection, DbTransactionProxy transactionProxy)
     {
         ArgumentNullException.ThrowIfNull(liveConnection, nameof(liveConnection));
         ArgumentNullException.ThrowIfNull(transactionProxy, nameof(transactionProxy));
@@ -83,22 +88,26 @@ internal class DbConnectionProxy : IDbConnection
 
         this.HasTransactionBeenExplicitlyRequested = false;
 
-        this.hasConnectionHasBeenRequestedToOpen = false;
+        this.connectionHasBeenRequestedToOpen = false;
     }
 
     [NotNull]
-    public string? ConnectionString { get => this.LiveConnection.ConnectionString; set => this.LiveConnection.ConnectionString = value; }
+    public override string? ConnectionString { get => this.LiveConnection.ConnectionString; set => this.LiveConnection.ConnectionString = value; }
 
-    public int ConnectionTimeout => this.LiveConnection.ConnectionTimeout;
+    public override int ConnectionTimeout => this.LiveConnection.ConnectionTimeout;
 
-    public string Database => this.LiveConnection.Database;
+    public override string Database => this.LiveConnection.Database;
 
-    public ConnectionState State => this.LiveConnection.State;
+    public override ConnectionState State => this.LiveConnection.State;
+
+    public override string DataSource => this.LiveConnection.DataSource;
+
+    public override string ServerVersion => this.LiveConnection.ServerVersion;
 
     // returning a _proxy_ for the ongoing transaction - 
     // this will prevent a client who calls BeginTransaction to call Commit/Rollback/Dispose on a _live_ transaction
     // TODO: implement counter of opening requests?
-    public IDbTransaction BeginTransaction()
+    protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
     {
         this.EnsureHasBeenRequestedToOpen();
 
@@ -112,37 +121,47 @@ internal class DbConnectionProxy : IDbConnection
         // if a transaction has been explicitly requested by the user via .BeginTrnasaction
         // they are now supposed to commit/rollack it.
         // Otherwise, the UoW will rollback the 'enclosing' live transaction in UnitOfWork.Commit()/Dispose().
-        this.HasTransactionBeenExplicitlyRequested = true;
-
-        return this.TransactionProxy;
-    }
-
-    public IDbTransaction BeginTransaction(IsolationLevel il)
-    {
-        this.EnsureHasBeenRequestedToOpen();
-
-        if (this.TransactionProxy.IsolationLevel == il)
+        if (isolationLevel == IsolationLevel.Unspecified || this.TransactionProxy.IsolationLevel == isolationLevel)
         {
+            this.HasTransactionBeenExplicitlyRequested = true;
             return this.TransactionProxy;
         }
 
         throw new InvalidOperationException("Can't start a transaction - another transaction is in progress.");
     }
 
-    // TODO: throw on an attempt to change database?
-    public void ChangeDatabase(string databaseName) => this.LiveConnection.ChangeDatabase(databaseName);
-
-    public void Close()
+    protected override ValueTask<DbTransaction> BeginDbTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken)
     {
-        this.hasConnectionHasBeenRequestedToOpen = false;
+        return ValueTask.FromResult(this.BeginDbTransaction(isolationLevel));
+    }
+
+    // TODO: throw on an attempt to change database?
+    public override void ChangeDatabase(string databaseName) => this.LiveConnection.ChangeDatabase(databaseName);
+
+    public override Task ChangeDatabaseAsync(string databaseName, CancellationToken cancellationToken = default) 
+        => this.LiveConnection.ChangeDatabaseAsync(databaseName, cancellationToken);
+
+    public override void Close()
+    {
+        this.connectionHasBeenRequestedToOpen = false;
 
         // do nothing here - we close the live connection connection only when
         // encompassing scope/unit of work closes
     }
 
-    public IDbCommand CreateCommand()
+    public override Task CloseAsync()
     {
-        IDbCommand liveCommand = this.LiveConnection.CreateCommand();
+        this.Close();
+
+        // do nothing here - we close the live connection connection only when
+        // encompassing scope/unit of work closes
+
+        return Task.CompletedTask;
+    }
+
+    protected override DbCommand CreateDbCommand()
+    {
+        DbCommand liveCommand = this.LiveConnection.CreateCommand();
         liveCommand.Transaction = this.TransactionProxy.LiveTransaction;
 
         DbCommandProxy command = new (liveCommand, this, this.TransactionProxy);
@@ -150,7 +169,7 @@ internal class DbConnectionProxy : IDbConnection
         return command;
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
         this.Close();
 
@@ -158,17 +177,32 @@ internal class DbConnectionProxy : IDbConnection
         // encompassing scope/unit of work closes
     }
 
-    public void Open()
+    public override ValueTask DisposeAsync()
+    {
+        this.Close();
+
+        return ValueTask.CompletedTask;
+    }
+
+    public override void Open()
     {
         // just recording the fact that user 'opened' the connection - for consistency of the API behavior
-        this.hasConnectionHasBeenRequestedToOpen = true;
+        this.connectionHasBeenRequestedToOpen = true;
 
         // do nothing here - live connection opening is mananged outside
     }
 
+    public override Task OpenAsync(CancellationToken cancellationToken)
+    {
+        this.Open();
+
+        // do nothing here - live connection opening is mananged outside
+        return Task.CompletedTask;
+    }
+
     private void EnsureHasBeenRequestedToOpen()
     {
-        if (this.hasConnectionHasBeenRequestedToOpen is not true)
+        if (this.connectionHasBeenRequestedToOpen is not true)
         {
             // TODO: check exception type and messaging
             throw new InvalidOperationException("Can't start a transaction on a closed connection.");
@@ -176,15 +210,13 @@ internal class DbConnectionProxy : IDbConnection
     }
 }
 
-internal class DbCommandProxy : IDbCommand
+internal class DbCommandProxy : DbCommand
 {
-    private readonly IDbCommand liveCommand;
+    private readonly DbCommand liveCommand;
     private readonly DbConnectionProxy connectionProxy;
+    private readonly DbTransactionProxy transactionProxy;
 
-    private DbTransactionProxy transactionProxy;
-
-
-    public DbCommandProxy(IDbCommand liveCommand, DbConnectionProxy connectionProxy, DbTransactionProxy transactionProxy)
+    public DbCommandProxy(DbCommand liveCommand, DbConnectionProxy connectionProxy, DbTransactionProxy transactionProxy)
     {
         ArgumentNullException.ThrowIfNull(liveCommand, nameof(liveCommand));
         ArgumentNullException.ThrowIfNull(connectionProxy, nameof(connectionProxy));
@@ -196,52 +228,62 @@ internal class DbCommandProxy : IDbCommand
     }
 
     [NotNull]
-    public string? CommandText { get => this.liveCommand.CommandText; set => this.liveCommand.CommandText = value; }
+    public override string? CommandText { get => this.liveCommand.CommandText; set => this.liveCommand.CommandText = value; }
 
-    public int CommandTimeout { get => this.liveCommand.CommandTimeout; set => this.liveCommand.CommandTimeout = value; }
+    public override int CommandTimeout { get => this.liveCommand.CommandTimeout; set => this.liveCommand.CommandTimeout = value; }
 
-    public CommandType CommandType { get => this.liveCommand.CommandType; set => this.liveCommand.CommandType = value; }
+    public override CommandType CommandType { get => this.liveCommand.CommandType; set => this.liveCommand.CommandType = value; }
 
     // TODO: make the setter a no-op?
-    public IDbConnection? Connection { get => this.connectionProxy; set => throw new NotSupportedException("Can't change connection."); }
+    protected override DbConnection? DbConnection { get => this.connectionProxy; set => throw new NotSupportedException("Can't change connection."); }
 
-    public IDataParameterCollection Parameters => this.liveCommand.Parameters;
+    protected override DbParameterCollection DbParameterCollection => this.liveCommand.Parameters;
 
     // 1. The transaction has already been set upon the command creation
     // 2. The DbConnectionProxy.BeginTransaction is configured to always return the same transaction, which is the same as in #1
     // So, at it's pointless to override the transaction with the same value, command's transaction setter is just a no-op
-    public IDbTransaction? Transaction { get => this.transactionProxy; set { } }
+    protected override DbTransaction? DbTransaction { get => this.transactionProxy; set { } }
 
-    public UpdateRowSource UpdatedRowSource { get => this.liveCommand.UpdatedRowSource; set => this.liveCommand.UpdatedRowSource = value; }
+    public override UpdateRowSource UpdatedRowSource { get => this.liveCommand.UpdatedRowSource; set => this.liveCommand.UpdatedRowSource = value; }
 
-    public void Cancel() => this.liveCommand.Cancel();
+    public override bool DesignTimeVisible { get => this.liveCommand.DesignTimeVisible; set => this.liveCommand.DesignTimeVisible = value; }
 
-    public IDbDataParameter CreateParameter() => this.liveCommand.CreateParameter();
+    public override void Cancel() => this.liveCommand.Cancel();
 
-    public void Dispose() => this.liveCommand.Dispose();
+    protected override DbParameter CreateDbParameter() => this.liveCommand.CreateParameter();
 
-    public int ExecuteNonQuery() => this.liveCommand.ExecuteNonQuery();
+    protected override void Dispose(bool disposing) => this.liveCommand.Dispose();
 
-    public IDataReader ExecuteReader() => this.liveCommand.ExecuteReader();
+    public override ValueTask DisposeAsync() => this.liveCommand.DisposeAsync();
 
-    public IDataReader ExecuteReader(CommandBehavior behavior) => this.liveCommand.ExecuteReader(behavior);
+    public override int ExecuteNonQuery() => this.liveCommand.ExecuteNonQuery();
 
-    public object? ExecuteScalar() => this.ExecuteScalar();
+    public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken) => await this.liveCommand.ExecuteNonQueryAsync(cancellationToken);
 
-    public void Prepare() => this.liveCommand.Prepare();
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) => this.liveCommand.ExecuteReader(behavior);
+
+    protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+        => await this.liveCommand.ExecuteReaderAsync(behavior, cancellationToken);
+
+    public override object? ExecuteScalar() => this.liveCommand.ExecuteScalar();
+
+    public override async Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken) => await this.liveCommand.ExecuteScalarAsync(cancellationToken);
+
+    public override void Prepare() => this.liveCommand.Prepare();
+
+    public override async Task PrepareAsync(CancellationToken cancellationToken = default) => await this.liveCommand.PrepareAsync(cancellationToken);
 }
 
-internal class DbTransactionProxy : IDbTransaction
+internal class DbTransactionProxy : DbTransaction
 {
     [NotNull]
     public DbConnectionProxy? ConnectionProxy { get; internal set; }
 
-    public IDbTransaction LiveTransaction { get; }
+    public DbTransaction LiveTransaction { get; }
 
     public bool HasBeenCommitted { get; private set; }
 
-
-    public DbTransactionProxy(IDbTransaction liveTransaction)
+    public DbTransactionProxy(DbTransaction liveTransaction)
     {
         ArgumentNullException.ThrowIfNull(liveTransaction, nameof(liveTransaction));
 
@@ -250,10 +292,11 @@ internal class DbTransactionProxy : IDbTransaction
         this.HasBeenCommitted = false;
     }
 
-    public IDbConnection? Connection => this.ConnectionProxy;
-    public IsolationLevel IsolationLevel => this.LiveTransaction.IsolationLevel;
+    public override IsolationLevel IsolationLevel => this.LiveTransaction.IsolationLevel;
 
-    public void Commit()
+    protected override DbConnection? DbConnection => this.ConnectionProxy;
+    
+    public override void Commit()
     {
         this.HasBeenCommitted = true;
 
@@ -261,12 +304,26 @@ internal class DbTransactionProxy : IDbTransaction
         // it'll be committed when the UoW commits
     }
 
-    public void Dispose()
+    public override Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        this.Commit();
+
+        return Task.CompletedTask;
+    }
+
+    public override ValueTask DisposeAsync()
+    {
+        // do nothing - it's a proxy
+
+        return ValueTask.CompletedTask;
+    }
+
+    protected override void Dispose(bool disposing)
     {
         // do nothing - it's a proxy
     }
 
-    public void Rollback()
+    public override void Rollback()
     {
         if (this.HasBeenCommitted)
         {
@@ -274,5 +331,12 @@ internal class DbTransactionProxy : IDbTransaction
         }
 
         // do nothing - it's a proxy
+    }
+
+    public override Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+        this.Rollback();
+
+        return Task.CompletedTask;
     }
 }

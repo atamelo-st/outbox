@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using System.Data.Common;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.DataAccess;
 
 public static class IDbCommandExtensions
 {
@@ -26,9 +26,10 @@ public static class IDbCommandExtensions
         return parameter;
     }
 
+    // TODO: when switched to Postgres provider, user strongly typed parameter creation method to avoid parameter value boxing
     public static DbParameter CreateParameter(this IDbCommand command, string parameterName, object? parameterValue)
     {
-        var parameter =  (DbParameter)command.CreateParameter();
+        var parameter = (DbParameter)command.CreateParameter();
 
         parameter.ParameterName = parameterName;
         parameter.Value = parameterValue;

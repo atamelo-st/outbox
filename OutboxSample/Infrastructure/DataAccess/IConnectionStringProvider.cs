@@ -1,7 +1,7 @@
 ﻿using Npgsql;
 using System.Data.SqlClient;
 
-namespace OutboxSample.Infrastructure;
+namespace OutboxSample.Infrastructure.DataAccess;
 
 public interface IConnectionStringProvider
 {

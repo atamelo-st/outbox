@@ -1,4 +1,4 @@
-﻿namespace OutboxSample.Model;
+﻿namespace OutboxSample.DomainModel;
 
 public record User
 {
@@ -9,7 +9,7 @@ public record User
     {
         ArgumentNullException.ThrowIfNull(name, nameof(name));
 
-        Id = id;
-        Name = name;
+        this.Id = id;
+        this.Name = name;
     }
 }

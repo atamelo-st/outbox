@@ -2,7 +2,16 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Npgsql;
 using OutboxSample.Application;
+using OutboxSample.Application.Commands;
+using OutboxSample.Application.DataAccess;
+using OutboxSample.Application.Eventing;
+using OutboxSample.Application.Handlers;
+using OutboxSample.Application.Queries;
+using OutboxSample.Common;
+using OutboxSample.DomainModel;
 using OutboxSample.Infrastructure;
+using OutboxSample.Infrastructure.DataAccess;
+using OutboxSample.Infrastructure.Eventing;
 using System.Data;
 
 public class Program
@@ -26,6 +35,8 @@ public class Program
 
     static void RegisterDependencies(ContainerBuilder containerBuilder)
     {
+        containerBuilder.RegisterType<DefaultTimeProvider>().As<ITimeProvider>().SingleInstance();
+        containerBuilder.RegisterType<AttributeSourcedEventMetadataProvider>().As<IEventMetadataProvider>().SingleInstance();
         containerBuilder.RegisterType<ConnectionStringProvider>().As<IConnectionStringProvider>().SingleInstance();
         containerBuilder.RegisterType<DefaultConnectionFactory>().As<IConnectionFactory>().SingleInstance();
         // TODO: per-scope?
@@ -33,5 +44,26 @@ public class Program
 
         containerBuilder.RegisterType<Outbox>().As<IOutbox>().InstancePerLifetimeScope();
         containerBuilder.RegisterType<UserRepository>().As<IUserRepository>().InstancePerLifetimeScope();
+
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetUserQuery, QueryResult<User>>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<AddUserCommand, AddUserCommandResult>>().InstancePerLifetimeScope();
+        containerBuilder.RegisterType<UserCommandQueryHandler>().As<ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>().InstancePerLifetimeScope();
+
+        containerBuilder.Register<QueryHandler<GetUserQuery, QueryResult<User>>>(
+            context => context.Resolve<IQueryHandler<GetUserQuery, QueryResult<User>>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<QueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>(
+            context => context.Resolve<IQueryHandler<GetAllUsersQuery, QueryResult<IEnumerable<DataStore.Item<User>>>>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<CommandHandler<AddUserCommand, AddUserCommandResult>>(
+            context => context.Resolve<ICommandHandler<AddUserCommand, AddUserCommandResult>>().HandleAsync
+        ).InstancePerLifetimeScope();
+
+        containerBuilder.Register<CommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>(
+            context => context.Resolve<ICommandHandler<ChangeUserNameCommand, ChangeUserNameCommandResult>>().HandleAsync
+        ).InstancePerLifetimeScope();
     }
 }
